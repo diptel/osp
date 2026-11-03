@@ -1,0 +1,64 @@
+"use client";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { AuthGate } from "@/components/AuthGate";
+import { logout } from "@/lib/pocketbase";
+
+export default function TeknisiLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const m = pathname.match(/^\/app\/proyek\/([^/]+)/);
+  const pid = m?.[1];
+  const showNav = !!pid;
+
+  const NAV = pid
+    ? [
+        { href: `/app/proyek/${pid}`, label: "Daftar" },
+        { href: `/app/proyek/${pid}/peta`, label: "Peta" },
+        { href: `/app/proyek/${pid}/kabel`, label: "Kabel" },
+        { href: `/app/proyek/${pid}/tiang`, label: "Tiang" },
+      ]
+    : [];
+
+  return (
+    <AuthGate require="field">
+      {() => (
+        <div className="min-h-screen flex flex-col bg-surface max-w-[480px] mx-auto">
+          {!pid && (
+            <header className="flex items-center justify-between px-4 py-3 bg-ink text-white">
+              <span className="font-semibold">BRIIX OSP</span>
+              <button
+                onClick={() => {
+                  logout();
+                  router.replace("/login");
+                }}
+                className="text-xs text-line2"
+              >
+                Keluar
+              </button>
+            </header>
+          )}
+          <main className="flex-1 flex flex-col min-h-0">{children}</main>
+          {showNav && (
+            <nav className="grid grid-cols-4 bg-card border-t border-border px-1 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5 shrink-0">
+              {NAV.map((n) => {
+                const active = pathname === n.href;
+                return (
+                  <Link
+                    key={n.href}
+                    href={n.href}
+                    className={`flex flex-col items-center justify-center gap-0.5 min-h-11 text-[11px] font-semibold ${
+                      active ? "text-ink" : "text-muted font-medium"
+                    }`}
+                  >
+                    {n.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          )}
+        </div>
+      )}
+    </AuthGate>
+  );
+}

@@ -10,3 +10,13 @@ services:
       - ./pb_migrations:/pb/pb_migrations
       - ./pb_hooks:/pb/pb_hooks
       - ./pb_public:/pb/pb_public
+
+  briixosp-web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_PB_URL: https://osp.briix.co.id
+    container_name: briixosp-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3091:3000"   # dibuka ke publik lewat reverse proxy 1Panel (app.osp.briix.co.id)
