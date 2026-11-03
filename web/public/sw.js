@@ -1,6 +1,6 @@
 // Service worker minimal BRIIX OSP — cache app-shell, network-first utk data.
 const CACHE = "briixosp-shell-v1";
-const SHELL = ["/app", "/app/login", "/app/manifest.json", "/app/icon.svg"];
+const SHELL = ["/app/", "/app/login/", "/app/manifest.json", "/app/icon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -32,6 +32,6 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE).then((cache) => cache.put(request, copy)).catch(() => {});
         return res;
       })
-      .catch(() => caches.match(request).then((r) => r || caches.match("/app")))
+      .catch(() => caches.match(request).then((r) => r || caches.match("/app/")))
   );
 });
