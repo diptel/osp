@@ -45,7 +45,7 @@ jobs:
             [ "$i" = 20 ] && { docker compose logs briixosp --tail 80; exit 1; }
           done
           for i in $(seq 1 30); do
-            curl -fsS -o /dev/null http://127.0.0.1:3091/ && exit 0
+            curl -fsS -o /dev/null http://127.0.0.1:3091/app && exit 0
             sleep 3
             [ "$i" = 30 ] && { docker compose logs briixosp-web --tail 80; exit 1; }
           done
