@@ -18,7 +18,7 @@ jobs:
           set -e
           V=0.40.6
           mkdir -p /tmp/briixosp-ci && cd /tmp/briixosp-ci
-          [ -x pocketbase ] || (wget -q https://github.com/pocketbase/pocketbase/releases/download/v$V/pocketbase_${V}_linux_amd64.zip -O pb.zip && unzip -oq pb.zip)
+          [ -x pocketbase ] || (wget -q https://github.com/pocketbase/pocketbase/releases/download/v$V/pocketbase_${V}_linux_amd64.zip -O pb.zip && python3 -c "import zipfile; zipfile.ZipFile('pb.zip').extractall('.')" && chmod +x pocketbase)
           rm -rf pb_data
           ./pocketbase migrate up --dir pb_data --migrationsDir "$GITHUB_WORKSPACE/pb_migrations"
 
