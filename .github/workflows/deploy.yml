@@ -1,0 +1,47 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-briixosp
+  cancel-in-progress: false
+
+jobs:
+  test-schema:
+    runs-on: [self-hosted, briixosp]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Uji migrasi di database kosong
+        run: |
+          set -e
+          V=0.40.6
+          mkdir -p /tmp/briixosp-ci && cd /tmp/briixosp-ci
+          [ -x pocketbase ] || (wget -q https://github.com/pocketbase/pocketbase/releases/download/v$V/pocketbase_${V}_linux_amd64.zip -O pb.zip && unzip -oq pb.zip)
+          rm -rf pb_data
+          ./pocketbase migrate up --dir pb_data --migrationsDir "$GITHUB_WORKSPACE/pb_migrations"
+
+  deploy:
+    needs: test-schema
+    runs-on: [self-hosted, briixosp]
+    env:
+      APP_DIR: /opt/1panel/docker/compose/briixosp
+    steps:
+      - uses: actions/checkout@v4
+      - name: Salin ke folder compose (pb_data tidak disentuh)
+        run: |
+          set -e
+          mkdir -p "$APP_DIR/pb_data"
+          rsync -a --delete --exclude pb_data --exclude .git ./ "$APP_DIR/"
+      - name: Build & jalankan
+        run: |
+          set -e
+          cd "$APP_DIR"
+          docker compose up -d --build
+          for i in $(seq 1 20); do
+            curl -fsS http://127.0.0.1:8095/api/health && exit 0
+            sleep 3
+          done
+          docker compose logs --tail 80
+          exit 1
