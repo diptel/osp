@@ -49,7 +49,7 @@ export default function FatListPage() {
     <div className="flex flex-col h-full min-h-0">
       <header className="bg-ink text-white px-4 pt-4 pb-4 flex flex-col gap-3 shrink-0">
         <div className="flex items-center gap-2.5">
-          <Link href="/app" className="text-white">
+          <Link href="/teknisi" className="text-white">
             ←
           </Link>
           <div className="min-w-0">
@@ -84,7 +84,7 @@ export default function FatListPage() {
           return (
             <li key={f.id}>
               <Link
-                href={`/app/proyek/${projectId}/fat/${f.id}`}
+                href={`/teknisi/proyek/${projectId}/fat/${f.id}`}
                 className="bg-card border border-border rounded-xl px-3 py-2.5 flex items-center gap-3"
               >
                 <span className={`w-3 h-3 rounded-full shrink-0 ${color}`} />

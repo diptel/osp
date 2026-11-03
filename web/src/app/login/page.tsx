@@ -17,7 +17,7 @@ export default function LoginPage() {
     try {
       const res = await login(email.trim(), password);
       const u = res.record as unknown as AppUser;
-      router.replace(isOfficeRole(u.role) ? "/admin" : "/app");
+      router.replace(isOfficeRole(u.role) ? "/admin" : "/teknisi");
     } catch {
       setErr("Email atau sandi salah.");
     } finally {

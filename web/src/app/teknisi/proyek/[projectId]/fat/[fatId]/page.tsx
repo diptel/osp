@@ -146,7 +146,7 @@ export default function UjiOpmPage() {
   return (
     <div className="flex flex-col h-full min-h-0">
       <header className="bg-card border-b border-border px-3 pt-3.5 pb-2.5 flex items-center gap-2 shrink-0">
-        <Link href={`/app/proyek/${projectId}`} className="w-11 h-11 flex items-center justify-center -ml-2">
+        <Link href={`/teknisi/proyek/${projectId}`} className="w-11 h-11 flex items-center justify-center -ml-2">
           ←
         </Link>
         <div className="flex-1 min-w-0">

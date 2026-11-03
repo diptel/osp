@@ -5,8 +5,8 @@ import { RegisterSW } from "@/components/RegisterSW";
 export const metadata: Metadata = {
   title: "BRIIX OSP",
   description: "Aplikasi lapangan FTTH — BRIIX OSP",
-  manifest: "/manifest.json",
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  manifest: "/app/manifest.json",
+  icons: { icon: "/app/icon.svg", apple: "/app/icon.svg" },
 };
 
 export const viewport: Viewport = {

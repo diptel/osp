@@ -8,7 +8,7 @@ export default function Home() {
   useEffect(() => {
     const u = currentUser();
     if (!u) router.replace("/login");
-    else router.replace(isOfficeRole(u.role) ? "/admin" : "/app");
+    else router.replace(isOfficeRole(u.role) ? "/admin" : "/teknisi");
   }, [router]);
   return null;
 }

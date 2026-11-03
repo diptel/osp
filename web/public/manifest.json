@@ -2,13 +2,13 @@
   "name": "BRIIX OSP",
   "short_name": "BRIIX OSP",
   "description": "Aplikasi lapangan proyek FTTH BRIIX OSP",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/app",
+  "scope": "/app/",
   "display": "standalone",
   "background_color": "#16181D",
   "theme_color": "#16181D",
   "orientation": "portrait-primary",
   "icons": [
-    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/app/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

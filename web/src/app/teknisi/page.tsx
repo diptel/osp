@@ -34,7 +34,7 @@ export default function TeknisiHome() {
       {projects?.map((p) => (
         <Link
           key={p.id}
-          href={`/app/proyek/${p.id}`}
+          href={`/teknisi/proyek/${p.id}`}
           className="bg-card border border-border rounded-xl p-3.5 flex flex-col gap-0.5"
         >
           <span className="font-mono text-xs text-muted">{p.cluster_id}</span>

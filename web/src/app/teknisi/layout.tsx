@@ -7,16 +7,16 @@ import { logout } from "@/lib/pocketbase";
 export default function TeknisiLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const m = pathname.match(/^\/app\/proyek\/([^/]+)/);
+  const m = pathname.match(/^\/teknisi\/proyek\/([^/]+)/);
   const pid = m?.[1];
   const showNav = !!pid;
 
   const NAV = pid
     ? [
-        { href: `/app/proyek/${pid}`, label: "Daftar" },
-        { href: `/app/proyek/${pid}/peta`, label: "Peta" },
-        { href: `/app/proyek/${pid}/kabel`, label: "Kabel" },
-        { href: `/app/proyek/${pid}/tiang`, label: "Tiang" },
+        { href: `/teknisi/proyek/${pid}`, label: "Daftar" },
+        { href: `/teknisi/proyek/${pid}/peta`, label: "Peta" },
+        { href: `/teknisi/proyek/${pid}/kabel`, label: "Kabel" },
+        { href: `/teknisi/proyek/${pid}/tiang`, label: "Tiang" },
       ]
     : [];
 

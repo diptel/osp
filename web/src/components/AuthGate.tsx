@@ -25,7 +25,7 @@ export function AuthGate({
       return;
     }
     if (require === "office" && !isOfficeRole(u.role)) {
-      router.replace("/app");
+      router.replace("/teknisi");
       return;
     }
     if (require === "field" && isOfficeRole(u.role)) {
