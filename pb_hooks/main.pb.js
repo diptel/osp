@@ -10,8 +10,10 @@ onRecordCreateRequest((e) => {
   const r = e.record
   const staff = u.isStaff(e.auth)
 
-  // 1. Foto lapangan wajib dari kamera aplikasi (admin/QC boleh unggah arsip lama)
-  if (r.getString("source") !== "camera" && !staff) {
+  // 1. Foto lapangan wajib dari kamera aplikasi (admin/QC boleh unggah arsip lama).
+  //    Pengecualian: foto "ODP Finish" (dokumentasi box yang sudah selesai, syarat
+  //    tambahan setelah RFS) boleh dari galeri HP atau file PC, siapa saja member proyek.
+  if (r.getString("source") !== "camera" && r.getString("purpose") !== "odp_finish" && !staff) {
     throw new BadRequestError("Foto harus diambil langsung dari kamera aplikasi, bukan dari galeri.")
   }
 

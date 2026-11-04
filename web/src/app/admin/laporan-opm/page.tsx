@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { pb } from "@/lib/pocketbase";
 import { buildOpmReportPdf, fetchOpmReportData } from "@/lib/opmReportPdf";
+import { OdpFinishPhotos } from "@/components/OdpFinishPhotos";
 import type { RecordModel } from "pocketbase";
 
 type OpmRow = RecordModel & {
@@ -15,8 +16,11 @@ type OpmRow = RecordModel & {
   };
 };
 
+type ProjectRow = RecordModel & { cluster_name: string; cluster_id: string };
+
 export default function LaporanOpmPage() {
   const [rows, setRows] = useState<OpmRow[] | null>(null);
+  const [allProjects, setAllProjects] = useState<ProjectRow[] | null>(null);
   const [downloadingId, setDownloadingId] = useState("");
 
   useEffect(() => {
@@ -25,6 +29,11 @@ export default function LaporanOpmPage() {
       .getFullList<OpmRow>({ filter: 'status = "approved"', expand: "fat,project", sort: "-created" })
       .then(setRows)
       .catch(() => setRows([]));
+    pb()
+      .collection("projects")
+      .getFullList<ProjectRow>({ sort: "-created" })
+      .then(setAllProjects)
+      .catch(() => setAllProjects([]));
   }, []);
 
   const projects = useMemo(() => {
@@ -69,6 +78,18 @@ export default function LaporanOpmPage() {
             >
               {downloadingId === p.id ? "Membuat PDF..." : `Unduh PDF · ${p.cluster_name} (${p.count} port)`}
             </button>
+          ))}
+        </div>
+      )}
+
+      {allProjects && allProjects.length > 0 && (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-sm font-semibold">Foto ODP Finish — syarat tambahan setelah RFS</h2>
+          {allProjects.map((p) => (
+            <div key={p.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-subtle">{p.cluster_name}</p>
+              <OdpFinishPhotos projectId={p.id} allowPaste canDelete />
+            </div>
           ))}
         </div>
       )}
