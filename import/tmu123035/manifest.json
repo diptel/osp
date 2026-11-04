@@ -1,0 +1,1154 @@
+[
+  {
+    "fat": "A01",
+    "port": 1,
+    "file": "98a50ecd-image.jpg",
+    "dbm": "-19.70"
+  },
+  {
+    "fat": "A01",
+    "port": 2,
+    "file": "628245ff-image.png",
+    "dbm": "-19.72"
+  },
+  {
+    "fat": "A01",
+    "port": 3,
+    "file": "0663b465-image.png",
+    "dbm": "-19.69"
+  },
+  {
+    "fat": "A01",
+    "port": 4,
+    "file": "5111fb8d-image.png",
+    "dbm": "-19.69"
+  },
+  {
+    "fat": "A01",
+    "port": 5,
+    "file": "45c31f40-image.png",
+    "dbm": "-19.92"
+  },
+  {
+    "fat": "A01",
+    "port": 6,
+    "file": "9b145f52-image.png",
+    "dbm": "-19.56"
+  },
+  {
+    "fat": "A01",
+    "port": 7,
+    "file": "bdcaa068-image.png",
+    "dbm": "-19.62"
+  },
+  {
+    "fat": "A01",
+    "port": 8,
+    "file": "e0308bb5-image.png",
+    "dbm": "-19.81"
+  },
+  {
+    "fat": "A02",
+    "port": 1,
+    "file": "172aaccb-image.jpg",
+    "dbm": "-19.78"
+  },
+  {
+    "fat": "A02",
+    "port": 2,
+    "file": "18a2e838-image.png",
+    "dbm": "-19.67"
+  },
+  {
+    "fat": "A02",
+    "port": 3,
+    "file": "7c9034ab-image.png",
+    "dbm": "-19.72"
+  },
+  {
+    "fat": "A02",
+    "port": 4,
+    "file": "d4f9082c-image.png",
+    "dbm": "-19.77"
+  },
+  {
+    "fat": "A02",
+    "port": 5,
+    "file": "b66128ad-image.png",
+    "dbm": "-19.48"
+  },
+  {
+    "fat": "A02",
+    "port": 6,
+    "file": "74bd46fa-image.png",
+    "dbm": "-19.92"
+  },
+  {
+    "fat": "A02",
+    "port": 7,
+    "file": "63d207f8-image.png",
+    "dbm": "-19.54"
+  },
+  {
+    "fat": "A02",
+    "port": 8,
+    "file": "7b7c10b5-image.png",
+    "dbm": "-19.52"
+  },
+  {
+    "fat": "A03",
+    "port": 1,
+    "file": "3394158e-image.jpg",
+    "dbm": "-19.69"
+  },
+  {
+    "fat": "A03",
+    "port": 2,
+    "file": "9a64ae3b-image.png",
+    "dbm": "-19.90"
+  },
+  {
+    "fat": "A03",
+    "port": 3,
+    "file": "5498a62b-image.png",
+    "dbm": "-19.83"
+  },
+  {
+    "fat": "A03",
+    "port": 4,
+    "file": "004ce076-image.png",
+    "dbm": "-19.61"
+  },
+  {
+    "fat": "A03",
+    "port": 5,
+    "file": "9809f24a-image.png",
+    "dbm": "-19.99"
+  },
+  {
+    "fat": "A03",
+    "port": 6,
+    "file": "6c7d8f8a-image.png",
+    "dbm": "-19.71"
+  },
+  {
+    "fat": "A03",
+    "port": 7,
+    "file": "370383ef-image.png",
+    "dbm": "-19.75"
+  },
+  {
+    "fat": "A03",
+    "port": 8,
+    "file": "ee3d4f9d-image.png",
+    "dbm": "-19.60"
+  },
+  {
+    "fat": "A04",
+    "port": 1,
+    "file": "67089f73-image.jpg",
+    "dbm": "-19.88"
+  },
+  {
+    "fat": "A04",
+    "port": 2,
+    "file": "e3b71839-image.png",
+    "dbm": "-19.56"
+  },
+  {
+    "fat": "A04",
+    "port": 3,
+    "file": "da004b9c-image.png",
+    "dbm": "-19.59"
+  },
+  {
+    "fat": "A04",
+    "port": 4,
+    "file": "d6d63474-image.png",
+    "dbm": "-19.48"
+  },
+  {
+    "fat": "A04",
+    "port": 5,
+    "file": "220cc889-image.png",
+    "dbm": "-19.77"
+  },
+  {
+    "fat": "A04",
+    "port": 6,
+    "file": "903b3ff2-image.png",
+    "dbm": "-19.79"
+  },
+  {
+    "fat": "A04",
+    "port": 7,
+    "file": "0a9e5d07-image.png",
+    "dbm": "-19.58"
+  },
+  {
+    "fat": "A04",
+    "port": 8,
+    "file": "819791ab-image.png",
+    "dbm": "-19.60"
+  },
+  {
+    "fat": "A05",
+    "port": 1,
+    "file": "1c0b378e-image.jpg",
+    "dbm": "-19.91"
+  },
+  {
+    "fat": "A05",
+    "port": 2,
+    "file": "4c6aa130-image.png",
+    "dbm": "-19.05"
+  },
+  {
+    "fat": "A05",
+    "port": 3,
+    "file": "a7c7bc85-image.png",
+    "dbm": "-19.19"
+  },
+  {
+    "fat": "A05",
+    "port": 4,
+    "file": "e47ba127-image.png",
+    "dbm": "-19.66"
+  },
+  {
+    "fat": "A05",
+    "port": 5,
+    "file": "176ae9ae-image.png",
+    "dbm": "-19.13"
+  },
+  {
+    "fat": "A05",
+    "port": 6,
+    "file": "cb0c5298-image.png",
+    "dbm": "-19.27"
+  },
+  {
+    "fat": "A05",
+    "port": 7,
+    "file": "9acff301-image.png",
+    "dbm": "-19.18"
+  },
+  {
+    "fat": "A05",
+    "port": 8,
+    "file": "3a1c3c30-image.png",
+    "dbm": "-19.11"
+  },
+  {
+    "fat": "A06",
+    "port": 1,
+    "file": "eb037691-image.jpg",
+    "dbm": "-19.64"
+  },
+  {
+    "fat": "A06",
+    "port": 2,
+    "file": "2877095b-image.png",
+    "dbm": "-19.17"
+  },
+  {
+    "fat": "A06",
+    "port": 3,
+    "file": "f006646d-image.png",
+    "dbm": "-19.21"
+  },
+  {
+    "fat": "A06",
+    "port": 4,
+    "file": "9eccca85-image.png",
+    "dbm": "-19.34"
+  },
+  {
+    "fat": "A06",
+    "port": 5,
+    "file": "2899302a-image.png",
+    "dbm": "-19.09"
+  },
+  {
+    "fat": "A06",
+    "port": 6,
+    "file": "7e89795c-image.png",
+    "dbm": "-19.01"
+  },
+  {
+    "fat": "A06",
+    "port": 7,
+    "file": "92bd8d7b-image.jpg",
+    "dbm": "-19.67"
+  },
+  {
+    "fat": "A06",
+    "port": 8,
+    "file": "5abf3d44-image.jpg",
+    "dbm": "-19.71"
+  },
+  {
+    "fat": "A07",
+    "port": 1,
+    "file": "cec1e3d3-image.jpg",
+    "dbm": "-19.54"
+  },
+  {
+    "fat": "A07",
+    "port": 2,
+    "file": "d17b4240-image.jpg",
+    "dbm": "-19.71"
+  },
+  {
+    "fat": "A07",
+    "port": 3,
+    "file": "6eb61d02-image.png",
+    "dbm": "-19.59"
+  },
+  {
+    "fat": "A07",
+    "port": 4,
+    "file": "df836d16-image.png",
+    "dbm": "-19.77"
+  },
+  {
+    "fat": "A07",
+    "port": 5,
+    "file": "d10554ce-image.png",
+    "dbm": "-19.91"
+  },
+  {
+    "fat": "A07",
+    "port": 6,
+    "file": "feeb61a8-image.png",
+    "dbm": "-19.54"
+  },
+  {
+    "fat": "A07",
+    "port": 7,
+    "file": "e8d84d7c-image.png",
+    "dbm": "-19.51"
+  },
+  {
+    "fat": "A07",
+    "port": 8,
+    "file": "96168a4c-image.png",
+    "dbm": "-19.53"
+  },
+  {
+    "fat": "A08",
+    "port": 1,
+    "file": "73b38650-image.jpg",
+    "dbm": "-19.12"
+  },
+  {
+    "fat": "A08",
+    "port": 2,
+    "file": "4ba9af33-image.png",
+    "dbm": "-19.56"
+  },
+  {
+    "fat": "A08",
+    "port": 3,
+    "file": "93b75878-image.png",
+    "dbm": "-19.75"
+  },
+  {
+    "fat": "A08",
+    "port": 4,
+    "file": "67e4a51d-image.png",
+    "dbm": "-19.68"
+  },
+  {
+    "fat": "A08",
+    "port": 5,
+    "file": "30179788-image.png",
+    "dbm": "-19.76"
+  },
+  {
+    "fat": "A08",
+    "port": 6,
+    "file": "e5290857-image.png",
+    "dbm": "-19.77"
+  },
+  {
+    "fat": "A08",
+    "port": 7,
+    "file": "c380ccdb-image.png",
+    "dbm": "-19.87"
+  },
+  {
+    "fat": "A08",
+    "port": 8,
+    "file": "085e3757-image.png",
+    "dbm": "-19.84"
+  },
+  {
+    "fat": "A09",
+    "port": 1,
+    "file": "e5ee18fb-image.jpg",
+    "dbm": "-19.53"
+  },
+  {
+    "fat": "A09",
+    "port": 2,
+    "file": "c9db5aff-image.png",
+    "dbm": "-19.79"
+  },
+  {
+    "fat": "A09",
+    "port": 3,
+    "file": "676f41db-image.png",
+    "dbm": "-19.77"
+  },
+  {
+    "fat": "A09",
+    "port": 4,
+    "file": "ab97d5d3-image.png",
+    "dbm": "-19.78"
+  },
+  {
+    "fat": "A09",
+    "port": 5,
+    "file": "214f92fb-image.png",
+    "dbm": "-19.82"
+  },
+  {
+    "fat": "A09",
+    "port": 6,
+    "file": "a4bdd319-image.png",
+    "dbm": "-19.88"
+  },
+  {
+    "fat": "A09",
+    "port": 7,
+    "file": "755d7049-image.png",
+    "dbm": "-19.87"
+  },
+  {
+    "fat": "A09",
+    "port": 8,
+    "file": "251227d8-image.png",
+    "dbm": "-19.90"
+  },
+  {
+    "fat": "A10",
+    "port": 1,
+    "file": "b834b5e8-image.jpg",
+    "dbm": "-19.82"
+  },
+  {
+    "fat": "A10",
+    "port": 2,
+    "file": "c99a495f-image.png",
+    "dbm": "-19.94"
+  },
+  {
+    "fat": "A10",
+    "port": 3,
+    "file": "f5ae86f3-image.png",
+    "dbm": "-19.98"
+  },
+  {
+    "fat": "A10",
+    "port": 4,
+    "file": "72f73aa1-image.png",
+    "dbm": "-19.94"
+  },
+  {
+    "fat": "A10",
+    "port": 5,
+    "file": "04e693f8-image.png",
+    "dbm": "-19.98"
+  },
+  {
+    "fat": "A10",
+    "port": 6,
+    "file": "603093e9-image.png",
+    "dbm": "-19.95"
+  },
+  {
+    "fat": "A10",
+    "port": 7,
+    "file": "72ccd805-image.png",
+    "dbm": "-19.96"
+  },
+  {
+    "fat": "A10",
+    "port": 8,
+    "file": "f2e9617b-image.png",
+    "dbm": "-19.97"
+  },
+  {
+    "fat": "A11",
+    "port": 1,
+    "file": "e6be8ff2-image.jpg",
+    "dbm": "-19.62"
+  },
+  {
+    "fat": "A11",
+    "port": 2,
+    "file": "90709450-image.jpg",
+    "dbm": "-19.95"
+  },
+  {
+    "fat": "A11",
+    "port": 3,
+    "file": "67add10f-image.jpg",
+    "dbm": "-19.97"
+  },
+  {
+    "fat": "A11",
+    "port": 4,
+    "file": "624eaf70-image.jpg",
+    "dbm": "-19.94"
+  },
+  {
+    "fat": "A11",
+    "port": 5,
+    "file": "c7790588-image.jpg",
+    "dbm": "-19.96"
+  },
+  {
+    "fat": "A11",
+    "port": 6,
+    "file": "995d4795-image.jpg",
+    "dbm": "-19.96"
+  },
+  {
+    "fat": "A11",
+    "port": 7,
+    "file": "5164b95b-image.jpg",
+    "dbm": "-19.94"
+  },
+  {
+    "fat": "A11",
+    "port": 8,
+    "file": "e19a7bdb-image.jpg",
+    "dbm": "-19.60"
+  },
+  {
+    "fat": "A12",
+    "port": 1,
+    "file": "0b32994f-image.jpg",
+    "dbm": "-19.66"
+  },
+  {
+    "fat": "A12",
+    "port": 2,
+    "file": "87ce1e14-image.png",
+    "dbm": "-19.60"
+  },
+  {
+    "fat": "A12",
+    "port": 3,
+    "file": "2284bd75-image.png",
+    "dbm": "-19.55"
+  },
+  {
+    "fat": "A12",
+    "port": 4,
+    "file": "219a5438-image.png",
+    "dbm": "-19.59"
+  },
+  {
+    "fat": "A12",
+    "port": 5,
+    "file": "5be493f4-image.png",
+    "dbm": "-19.78"
+  },
+  {
+    "fat": "A12",
+    "port": 6,
+    "file": "f8cc548f-image.png",
+    "dbm": "-19.53"
+  },
+  {
+    "fat": "A12",
+    "port": 7,
+    "file": "9e0229f8-image.png",
+    "dbm": "-19.56"
+  },
+  {
+    "fat": "A12",
+    "port": 8,
+    "file": "9ed9a4d6-image.png",
+    "dbm": "-19.55"
+  },
+  {
+    "fat": "A13",
+    "port": 1,
+    "file": "2d1fc374-image.jpg",
+    "dbm": "-19.67"
+  },
+  {
+    "fat": "A13",
+    "port": 2,
+    "file": "9d8829bf-image.png",
+    "dbm": "-19.57"
+  },
+  {
+    "fat": "A13",
+    "port": 3,
+    "file": "2e5d6d29-image.png",
+    "dbm": "-19.94"
+  },
+  {
+    "fat": "A13",
+    "port": 4,
+    "file": "df10bf2e-image.png",
+    "dbm": "-19.76"
+  },
+  {
+    "fat": "A13",
+    "port": 5,
+    "file": "cf604666-image.png",
+    "dbm": "-19.87"
+  },
+  {
+    "fat": "A13",
+    "port": 6,
+    "file": "f4887611-image.png",
+    "dbm": "-19.78"
+  },
+  {
+    "fat": "A13",
+    "port": 7,
+    "file": "3fd766d8-image.png",
+    "dbm": "-20.34"
+  },
+  {
+    "fat": "A13",
+    "port": 8,
+    "file": "0d51ee3b-image.png",
+    "dbm": "-19.77"
+  },
+  {
+    "fat": "A14",
+    "port": 1,
+    "file": "a1cfaf19-image.jpg",
+    "dbm": "-19.38"
+  },
+  {
+    "fat": "A14",
+    "port": 2,
+    "file": "7461e4b2-image.png",
+    "dbm": "-19.76"
+  },
+  {
+    "fat": "A14",
+    "port": 3,
+    "file": "0b07a610-image.png",
+    "dbm": "-19.73"
+  },
+  {
+    "fat": "A14",
+    "port": 4,
+    "file": "7d7780a0-image.png",
+    "dbm": "-19.65"
+  },
+  {
+    "fat": "A14",
+    "port": 5,
+    "file": "2d5b4e09-image.png",
+    "dbm": "-19.59"
+  },
+  {
+    "fat": "A14",
+    "port": 6,
+    "file": "0cb194f6-image.png",
+    "dbm": "-19.60"
+  },
+  {
+    "fat": "A14",
+    "port": 7,
+    "file": "0642199a-image.png",
+    "dbm": "-19.55"
+  },
+  {
+    "fat": "A14",
+    "port": 8,
+    "file": "1b30375e-image.png",
+    "dbm": "-19.64"
+  },
+  {
+    "fat": "B01",
+    "port": 1,
+    "file": "d996841c-image.jpg",
+    "dbm": "-19.86"
+  },
+  {
+    "fat": "B01",
+    "port": 2,
+    "file": "442d3f62-image.png",
+    "dbm": "-19.95"
+  },
+  {
+    "fat": "B01",
+    "port": 3,
+    "file": "544a6576-image.png",
+    "dbm": "-19.96"
+  },
+  {
+    "fat": "B01",
+    "port": 4,
+    "file": "a6e1c726-image.png",
+    "dbm": "-19.83"
+  },
+  {
+    "fat": "B01",
+    "port": 5,
+    "file": "81c65f6f-image.png",
+    "dbm": "-19.90"
+  },
+  {
+    "fat": "B01",
+    "port": 6,
+    "file": "568b9573-image.png",
+    "dbm": "-19.14"
+  },
+  {
+    "fat": "B01",
+    "port": 7,
+    "file": "eff03a35-image.png",
+    "dbm": "-19.60"
+  },
+  {
+    "fat": "B01",
+    "port": 8,
+    "file": "3a6e5b0e-image.png",
+    "dbm": "-19.47"
+  },
+  {
+    "fat": "B02",
+    "port": 1,
+    "file": "53dbac2a-image.jpg",
+    "dbm": "-19.82"
+  },
+  {
+    "fat": "B02",
+    "port": 2,
+    "file": "17b553b4-image.png",
+    "dbm": "-18.88"
+  },
+  {
+    "fat": "B02",
+    "port": 3,
+    "file": "814643c5-image.png",
+    "dbm": "-18.88"
+  },
+  {
+    "fat": "B02",
+    "port": 4,
+    "file": "93c03fa7-image.png",
+    "dbm": "-19.10"
+  },
+  {
+    "fat": "B02",
+    "port": 5,
+    "file": "8847b39a-image.png",
+    "dbm": "-18.94"
+  },
+  {
+    "fat": "B02",
+    "port": 6,
+    "file": "e66f1c4c-image.png",
+    "dbm": "-19.07"
+  },
+  {
+    "fat": "B02",
+    "port": 7,
+    "file": "1e1c2e54-image.png",
+    "dbm": "-18.91"
+  },
+  {
+    "fat": "B02",
+    "port": 8,
+    "file": "c068b48c-image.png",
+    "dbm": "-19.01"
+  },
+  {
+    "fat": "B03",
+    "port": 1,
+    "file": "698c0363-image.jpg",
+    "dbm": "-19.83"
+  },
+  {
+    "fat": "B03",
+    "port": 2,
+    "file": "e593a30d-image.png",
+    "dbm": "-19.02"
+  },
+  {
+    "fat": "B03",
+    "port": 3,
+    "file": "13005ad7-image.png",
+    "dbm": "-18.97"
+  },
+  {
+    "fat": "B03",
+    "port": 4,
+    "file": "6f9127a3-image.png",
+    "dbm": "-18.94"
+  },
+  {
+    "fat": "B03",
+    "port": 5,
+    "file": "c205e09f-image.png",
+    "dbm": "-18.70"
+  },
+  {
+    "fat": "B03",
+    "port": 6,
+    "file": "3edc9d43-image.png",
+    "dbm": "-18.66"
+  },
+  {
+    "fat": "B03",
+    "port": 7,
+    "file": "7ab737ce-image.png",
+    "dbm": "-18.91"
+  },
+  {
+    "fat": "B03",
+    "port": 8,
+    "file": "4461ae76-image.png",
+    "dbm": "-19.06"
+  },
+  {
+    "fat": "B04",
+    "port": 1,
+    "file": "83e22d5b-image.jpg",
+    "dbm": "-19.88"
+  },
+  {
+    "fat": "B04",
+    "port": 2,
+    "file": "40ff8002-image.png",
+    "dbm": "-19.08"
+  },
+  {
+    "fat": "B04",
+    "port": 3,
+    "file": "b5f441e3-image.png",
+    "dbm": "-19.05"
+  },
+  {
+    "fat": "B04",
+    "port": 4,
+    "file": "dc259199-image.png",
+    "dbm": "-19.07"
+  },
+  {
+    "fat": "B04",
+    "port": 5,
+    "file": "e447fde6-image.png",
+    "dbm": "-19.08"
+  },
+  {
+    "fat": "B04",
+    "port": 6,
+    "file": "7ad31779-image.png",
+    "dbm": "-18.96"
+  },
+  {
+    "fat": "B04",
+    "port": 7,
+    "file": "a173fb2d-image.png",
+    "dbm": "-19.09"
+  },
+  {
+    "fat": "B04",
+    "port": 8,
+    "file": "78f87215-image.png",
+    "dbm": "-19.16"
+  },
+  {
+    "fat": "B05",
+    "port": 1,
+    "file": "e60e259d-image.jpg",
+    "dbm": "-19.06"
+  },
+  {
+    "fat": "B05",
+    "port": 2,
+    "file": "5c530ca0-image.png",
+    "dbm": "-19.60"
+  },
+  {
+    "fat": "B05",
+    "port": 3,
+    "file": "93601b12-image.png",
+    "dbm": "-19.71"
+  },
+  {
+    "fat": "B05",
+    "port": 4,
+    "file": "2a2fdeb6-image.png",
+    "dbm": "-19.31"
+  },
+  {
+    "fat": "B05",
+    "port": 5,
+    "file": "8adad21c-image.png",
+    "dbm": "-19.30"
+  },
+  {
+    "fat": "B05",
+    "port": 6,
+    "file": "c6744084-image.png",
+    "dbm": "-19.29"
+  },
+  {
+    "fat": "B05",
+    "port": 7,
+    "file": "6e290480-image.png",
+    "dbm": "-19.28"
+  },
+  {
+    "fat": "B05",
+    "port": 8,
+    "file": "81522079-image.png",
+    "dbm": "-19.20"
+  },
+  {
+    "fat": "B06",
+    "port": 1,
+    "file": "516410b0-image.jpg",
+    "dbm": "-19.93"
+  },
+  {
+    "fat": "B06",
+    "port": 2,
+    "file": "17a3399c-image.png",
+    "dbm": "-18.63"
+  },
+  {
+    "fat": "B06",
+    "port": 3,
+    "file": "6ddba08d-image.png",
+    "dbm": "-18.63"
+  },
+  {
+    "fat": "B06",
+    "port": 4,
+    "file": "d53db5aa-image.png",
+    "dbm": "-18.65"
+  },
+  {
+    "fat": "B06",
+    "port": 5,
+    "file": "b9c1f2f6-image.png",
+    "dbm": "-18.57"
+  },
+  {
+    "fat": "B06",
+    "port": 6,
+    "file": "df3aaff2-image.png",
+    "dbm": "-19.23"
+  },
+  {
+    "fat": "B06",
+    "port": 7,
+    "file": "75d3fed7-image.png",
+    "dbm": "-18.75"
+  },
+  {
+    "fat": "B06",
+    "port": 8,
+    "file": "084b4735-image.png",
+    "dbm": "-18.75"
+  },
+  {
+    "fat": "B07",
+    "port": 1,
+    "file": "c279076e-image.jpg",
+    "dbm": "-19.34"
+  },
+  {
+    "fat": "B07",
+    "port": 2,
+    "file": "bd66e014-image.png",
+    "dbm": "-19.18"
+  },
+  {
+    "fat": "B07",
+    "port": 3,
+    "file": "3dd77021-image.png",
+    "dbm": "-19.26"
+  },
+  {
+    "fat": "B07",
+    "port": 4,
+    "file": "fe929b18-image.png",
+    "dbm": "-18.57"
+  },
+  {
+    "fat": "B07",
+    "port": 5,
+    "file": "5ab3ce29-image.png",
+    "dbm": "-18.57"
+  },
+  {
+    "fat": "B07",
+    "port": 6,
+    "file": "08c39b4c-image.png",
+    "dbm": "-18.61"
+  },
+  {
+    "fat": "B07",
+    "port": 7,
+    "file": "84be9afd-image.png",
+    "dbm": "-18.64"
+  },
+  {
+    "fat": "B07",
+    "port": 8,
+    "file": "c984665b-image.png",
+    "dbm": "-18.60"
+  },
+  {
+    "fat": "B08",
+    "port": 1,
+    "file": "e3812c8d-image.jpg",
+    "dbm": "-19.94"
+  },
+  {
+    "fat": "B08",
+    "port": 2,
+    "file": "6c95226e-image.png",
+    "dbm": "-19.11"
+  },
+  {
+    "fat": "B08",
+    "port": 3,
+    "file": "4446aa0f-image.png",
+    "dbm": "-19.10"
+  },
+  {
+    "fat": "B08",
+    "port": 4,
+    "file": "8ec56e32-image.png",
+    "dbm": "-19.08"
+  },
+  {
+    "fat": "B08",
+    "port": 5,
+    "file": "637a0421-image.png",
+    "dbm": "-19.04"
+  },
+  {
+    "fat": "B08",
+    "port": 6,
+    "file": "e004bcf4-image.png",
+    "dbm": "-19.13"
+  },
+  {
+    "fat": "B08",
+    "port": 7,
+    "file": "0fa1bd00-image.png",
+    "dbm": "-19.02"
+  },
+  {
+    "fat": "B08",
+    "port": 8,
+    "file": "b5b75e9e-image.png",
+    "dbm": "-19.12"
+  },
+  {
+    "fat": "B09",
+    "port": 1,
+    "file": "87f64d63-image.jpg",
+    "dbm": "-19.42"
+  },
+  {
+    "fat": "B09",
+    "port": 2,
+    "file": "128f9ec0-image.png",
+    "dbm": "-19.15"
+  },
+  {
+    "fat": "B09",
+    "port": 3,
+    "file": "79cf7f43-image.png",
+    "dbm": "-19.21"
+  },
+  {
+    "fat": "B09",
+    "port": 4,
+    "file": "05e7684c-image.png",
+    "dbm": "-19.47"
+  },
+  {
+    "fat": "B09",
+    "port": 5,
+    "file": "15499eb8-image.png",
+    "dbm": "-19.20"
+  },
+  {
+    "fat": "B09",
+    "port": 6,
+    "file": "80832743-image.png",
+    "dbm": "-19.68"
+  },
+  {
+    "fat": "B09",
+    "port": 7,
+    "file": "990c11e3-image.png",
+    "dbm": "-19.43"
+  },
+  {
+    "fat": "B09",
+    "port": 8,
+    "file": "5ea3ceca-image.png",
+    "dbm": "-19.48"
+  },
+  {
+    "fat": "B10",
+    "port": 1,
+    "file": "2a2d1ac1-image.jpg",
+    "dbm": "-19.82"
+  },
+  {
+    "fat": "B10",
+    "port": 2,
+    "file": "ac3bebad-image.png",
+    "dbm": "-19.45"
+  },
+  {
+    "fat": "B10",
+    "port": 3,
+    "file": "73c6e1fa-image.png",
+    "dbm": "-18.69"
+  },
+  {
+    "fat": "B10",
+    "port": 4,
+    "file": "58fd8ec3-image.png",
+    "dbm": "-18.71"
+  },
+  {
+    "fat": "B10",
+    "port": 5,
+    "file": "61cfb3bd-image.png",
+    "dbm": "-18.72"
+  },
+  {
+    "fat": "B10",
+    "port": 6,
+    "file": "1ab652d1-image.png",
+    "dbm": "-18.73"
+  },
+  {
+    "fat": "B10",
+    "port": 7,
+    "file": "e59b4104-image.png",
+    "dbm": "-18.72"
+  },
+  {
+    "fat": "B10",
+    "port": 8,
+    "file": "14257a65-image.png",
+    "dbm": "-18.70"
+  }
+]

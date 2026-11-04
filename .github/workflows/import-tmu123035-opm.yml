@@ -1,0 +1,34 @@
+name: import-tmu123035-opm
+on:
+  workflow_dispatch:
+    inputs:
+      pb_url:
+        description: "Base URL PocketBase"
+        default: "https://osp.briix.co.id"
+      project_id:
+        description: "ID proyek TMU123.035"
+        default: "giouyf3kr1mgiwz"
+
+concurrency:
+  group: import-tmu123035-opm
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: [self-hosted, briixosp]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: data/tmu123035-opm
+      - name: Siapkan Python
+        run: |
+          set -e
+          python3 -m pip install --user --break-system-packages --quiet requests pillow 2>/dev/null \
+            || python3 -m pip install --user --quiet requests pillow
+      - name: Jalankan impor
+        env:
+          SPLICER_PASSWORD: ${{ secrets.SPLICER_PASSWORD }}
+        run: |
+          set -e
+          cd import/tmu123035
+          python3 import_opm_photos.py --pb "${{ inputs.pb_url }}" --project "${{ inputs.project_id }}"
