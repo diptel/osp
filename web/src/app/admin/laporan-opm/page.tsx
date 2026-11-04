@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { pb } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 
@@ -18,10 +18,9 @@ type OpmRow = RecordModel & {
 type ProjectRow = RecordModel & { cluster_name: string; cluster_id: string };
 
 export default function LaporanOpmPage() {
-  const router = useRouter();
   const [rows, setRows] = useState<OpmRow[] | null>(null);
   const [allProjects, setAllProjects] = useState<ProjectRow[] | null>(null);
-  const [selected, setSelected] = useState("");
+  const [fatCounts, setFatCounts] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     pb()
@@ -32,12 +31,25 @@ export default function LaporanOpmPage() {
     pb()
       .collection("projects")
       .getFullList<ProjectRow>({ sort: "-created" })
-      .then((rows) => {
-        setAllProjects(rows);
-        if (rows.length) setSelected((s) => s || rows[0].id);
-      })
+      .then(setAllProjects)
       .catch(() => setAllProjects([]));
+    pb()
+      .collection("assets")
+      .getFullList<RecordModel & { project: string; ports?: number }>({ filter: 'kind = "fat"' })
+      .then((assets) => {
+        const m = new Map<string, number>();
+        for (const a of assets) m.set(a.project, (m.get(a.project) || 0) + (a.ports || 8));
+        setFatCounts(m);
+      })
+      .catch(() => void 0);
   }, []);
+
+  // port yang approved per proyek
+  const approvedByProject = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of rows || []) m.set(r.project, (m.get(r.project) || 0) + 1);
+    return m;
+  }, [rows]);
 
   return (
     <div className="max-w-3xl flex flex-col gap-5">
@@ -46,34 +58,32 @@ export default function LaporanOpmPage() {
         <p className="text-sm text-muted">Hasil uji OPM per port FAT yang sudah disetujui QC.</p>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-center bg-card border border-border rounded-xl p-3">
-        <label className="text-xs font-semibold text-subtle">Pilih proyek</label>
-        <select
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-          className="flex-1 min-w-[180px] px-2.5 py-2 rounded-lg border border-line2 text-sm bg-white"
-        >
-          {allProjects === null && <option>Memuat...</option>}
-          {allProjects?.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.cluster_name} ({p.cluster_id})
-            </option>
-          ))}
-        </select>
-        <button
-          disabled={!selected}
-          onClick={() => router.push(`/admin/proyek/${selected}/laporan`)}
-          className="px-3 py-2 rounded-lg text-sm font-semibold bg-ink text-white disabled:opacity-50"
-        >
-          Buka Laporan
-        </button>
-        <button
-          disabled={!selected}
-          onClick={() => router.push(`/admin/proyek/${selected}/odp-finish`)}
-          className="px-3 py-2 rounded-lg text-sm font-semibold border border-border bg-card disabled:opacity-50"
-        >
-          Foto Finish FAT
-        </button>
+      <div className="flex flex-col gap-2">
+        {allProjects === null && <p className="text-sm text-muted">Memuat daftar proyek...</p>}
+        {allProjects?.length === 0 && <p className="text-sm text-muted">Belum ada proyek.</p>}
+        {allProjects?.map((p) => {
+          const approved = approvedByProject.get(p.id) || 0;
+          const total = fatCounts.get(p.id) || 0;
+          return (
+            <div key={p.id} className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{p.cluster_name}</p>
+                <p className="text-xs text-muted font-mono">
+                  {p.cluster_id} · {approved}/{total || "?"} port terverifikasi
+                </p>
+              </div>
+              <Link href={`/admin/proyek/${p.id}/laporan`} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-ink text-white">
+                Laporan
+              </Link>
+              <Link
+                href={`/admin/proyek/${p.id}/odp-finish`}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border bg-card"
+              >
+                Finish FAT
+              </Link>
+            </div>
+          );
+        })}
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
