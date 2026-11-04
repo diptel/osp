@@ -115,8 +115,35 @@ export async function POST(req: NextRequest) {
     );
     form.append("generated_by", user.id);
 
-    const record = await client.collection("reports").create(form);
-    return NextResponse.json({ ok: true, id: record.id });
+    try {
+      const record = await client.collection("reports").create(form);
+      return NextResponse.json({ ok: true, id: record.id });
+    } catch (createErr) {
+      // Debug sementara: tampilkan detail mentah dari PocketBase (status,
+      // data per-field, dan nilai yang dikirim) supaya kalau masih gagal,
+      // penyebabnya langsung kelihatan tanpa coba-coba lagi.
+      console.error("reports.create gagal:", createErr);
+      const anyE = createErr as {
+        status?: number;
+        response?: { message?: string; data?: Record<string, { message?: string }> };
+        message?: string;
+      };
+      const data = anyE?.response?.data;
+      let detail: string;
+      if (data && Object.keys(data).length > 0) {
+        detail = Object.entries(data)
+          .map(([field, info]) => `${field}: ${info?.message || "tidak valid"}`)
+          .join("; ");
+      } else {
+        detail = anyE?.response?.message || (createErr instanceof Error ? createErr.message : String(createErr));
+      }
+      return NextResponse.json(
+        {
+          error: `${detail} [status=${anyE?.status}, role=${user.role}, uid=${user.id}, pid=${projectId}]`,
+        },
+        { status: 500 }
+      );
+    }
   } catch (e) {
     const anyE = e as { response?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
     const data = anyE?.response?.data;
