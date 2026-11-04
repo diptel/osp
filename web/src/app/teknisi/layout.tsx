@@ -24,7 +24,7 @@ export default function TeknisiLayout({ children }: { children: React.ReactNode 
   return (
     <AuthGate require="field">
       {() => (
-        <div className="min-h-screen flex flex-col bg-surface max-w-[480px] mx-auto">
+        <div className="h-dvh flex flex-col bg-surface max-w-[480px] mx-auto overflow-hidden">
           {!pid && (
             <header className="flex items-center justify-between px-4 py-3 bg-ink text-white">
               <span className="flex items-center gap-2">
@@ -44,7 +44,7 @@ export default function TeknisiLayout({ children }: { children: React.ReactNode 
           )}
           <main className="flex-1 flex flex-col min-h-0">{children}</main>
           {showNav && (
-            <nav className="grid grid-cols-4 bg-card border-t border-border px-1 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5 shrink-0">
+            <nav className="grid grid-cols-4 bg-card border-t border-border px-1 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5 shrink-0 sticky bottom-0 z-10">
               {NAV.map((n) => {
                 const active = pathname === n.href;
                 return (
