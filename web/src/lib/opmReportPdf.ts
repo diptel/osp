@@ -57,7 +57,6 @@ function drawHeader(
   doc: jsPDF,
   title: string,
   info: { region: string; olt: string; cluster_name: string; cluster_id: string },
-  briixLogo: string | null,
   clientLogo: string | null
 ) {
   const top = 40;
@@ -74,8 +73,7 @@ function drawHeader(
   doc.line(x2, top, x2, top + h);
   doc.line(x3, top, x3, top + h);
 
-  if (briixLogo) doc.addImage(briixLogo, "JPEG", M + 12, top + 15, 24, 24);
-  if (clientLogo) doc.addImage(clientLogo, "JPEG", M + 84, top + 18, 90, 16);
+  if (clientLogo) doc.addImage(clientLogo, "JPEG", M + 14, top + 16, 90, 26);
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(9.5);
@@ -116,13 +114,11 @@ function drawPortCard(
   clusterName: string,
   dateLabel: string,
   inputFdt: string,
-  briixLogo: string | null,
   clientLogo: string | null
 ) {
   doc.setFillColor(255, 255, 255);
   doc.rect(x, yTop, cardw, h, "F");
-  if (briixLogo) doc.addImage(briixLogo, "JPEG", x + 4, yTop + 1.5, 11, 11);
-  if (clientLogo) doc.addImage(clientLogo, "JPEG", x + cardw - 50, yTop + 2.5, 46, 8);
+  if (clientLogo) doc.addImage(clientLogo, "JPEG", x + 4, yTop + 1.5, 46, 11);
 
   const boxTop = yTop + 16;
   const boxH = h - 19;
@@ -174,7 +170,6 @@ async function drawFatPage(
   fat: OpmReportFat,
   project: OpmReportProject,
   dateLabel: string,
-  briixLogo: string | null,
   clientLogo: string | null,
   hidePhotos: boolean
 ) {
@@ -182,7 +177,6 @@ async function drawFatPage(
     doc,
     "FAT " + fat.code,
     { region: project.region, olt: project.olt, cluster_name: project.cluster_name, cluster_id: project.cluster_id },
-    briixLogo,
     clientLogo
   );
 
@@ -240,7 +234,6 @@ async function drawFatPage(
       project.cluster_name,
       dateLabel,
       project.fdt_input_dbm != null ? String(project.fdt_input_dbm) : "-",
-      briixLogo,
       clientLogo
     );
     doc.setDrawColor(20, 20, 20);
@@ -252,13 +245,11 @@ async function drawFatPage(
 export async function buildOpmReportPdf(opts: {
   project: OpmReportProject;
   fats: OpmReportFat[];
-  briixLogoUrl?: string | null;
   clientLogoUrl?: string | null;
   dateLabel?: string;
   /** Sembunyikan panel foto (dipakai portal klien publik — file foto tidak bisa diakses tanpa login). */
   hidePhotos?: boolean;
 }): Promise<jsPDF> {
-  const briixLogo = opts.briixLogoUrl ? await loadImageAsJpegDataUrl(opts.briixLogoUrl) : null;
   const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl) : null;
   const dateLabel =
     opts.dateLabel ||
@@ -269,7 +260,7 @@ export async function buildOpmReportPdf(opts: {
   for (const fat of opts.fats) {
     if (!first) doc.addPage();
     first = false;
-    await drawFatPage(doc, fat, opts.project, dateLabel, briixLogo, clientLogo, !!opts.hidePhotos);
+    await drawFatPage(doc, fat, opts.project, dateLabel, clientLogo, !!opts.hidePhotos);
   }
   return doc;
 }

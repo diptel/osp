@@ -51,7 +51,7 @@ export default function LaporanOpmPage() {
     setDownloadingId(projectId);
     try {
       const data = await fetchOpmReportData(projectId);
-      const doc = await buildOpmReportPdf({ project: data.project, fats: data.fats, briixLogoUrl: "/app/mark.svg", clientLogoUrl: data.clientLogoUrl });
+      const doc = await buildOpmReportPdf({ project: data.project, fats: data.fats, clientLogoUrl: data.clientLogoUrl });
       doc.save(`Laporan-OPM-${clusterName || projectId}.pdf`);
     } catch (e) {
       alert("Gagal membuat PDF: " + (e instanceof Error ? e.message : String(e)));

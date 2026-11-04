@@ -77,7 +77,6 @@ export default function FatListPage() {
       const doc = await buildOpmReportPdf({
         project: data.project,
         fats: data.fats,
-        briixLogoUrl: "/app/mark.svg",
         clientLogoUrl: data.clientLogoUrl,
       });
       doc.save(`Laporan-OPM-${data.clusterName || projectId}.pdf`);

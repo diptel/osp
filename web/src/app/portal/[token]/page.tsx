@@ -54,7 +54,6 @@ export default function PortalKlienPage() {
       const doc = await buildOpmReportPdf({
         project: data.project,
         fats,
-        briixLogoUrl: "/app/mark.svg",
         hidePhotos: true,
       });
       doc.save(`Laporan-OPM-${data.project.cluster_name || data.project.code}.pdf`);
