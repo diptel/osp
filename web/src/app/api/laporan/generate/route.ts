@@ -104,13 +104,20 @@ export async function POST(req: NextRequest) {
       clusterName = data.clusterName;
     }
 
+    // Diagnostik sementara: pastikan buffer PDF yang dihasilkan jsPDF di
+    // Node benar-benar valid (header "%PDF-" di awal, ukuran wajar) —
+    // kalau jsPDF diam-diam gagal di lingkungan server, baru kelihatan di sini.
+    const byteArr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes as ArrayBuffer);
+    const prefix = Buffer.from(byteArr.slice(0, 8)).toString("latin1");
+    console.log(`PDF dibuat: ${byteArr.byteLength} bytes, prefix="${prefix}"`);
+
     const form = new FormData();
     form.append("project", projectId);
     form.append("kind", kind);
     form.append("label", label);
     form.append(
       "file",
-      new Blob([bytes], { type: "application/pdf" }),
+      new Blob([byteArr], { type: "application/pdf" }),
       `${KIND_LABEL[kind]}-${clusterName || projectId}-${Date.now()}.pdf`
     );
     form.append("generated_by", user.id);
@@ -139,7 +146,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json(
         {
-          error: `${detail} [status=${anyE?.status}, role=${user.role}, uid=${user.id}, pid=${projectId}]`,
+          error: `${detail} [status=${anyE?.status}, role=${user.role}, uid=${user.id}, pid=${projectId}, pdfBytes=${byteArr.byteLength}, pdfPrefix="${prefix}"]`,
         },
         { status: 500 }
       );
