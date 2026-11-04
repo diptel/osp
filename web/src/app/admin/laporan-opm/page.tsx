@@ -84,7 +84,7 @@ export default function LaporanOpmPage() {
 
       {allProjects && allProjects.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold">Foto ODP Finish — syarat tambahan setelah RFS</h2>
+          <h2 className="text-sm font-semibold">Foto Finish FAT — syarat tambahan setelah RFS</h2>
           <div className="flex flex-wrap gap-2">
             {allProjects.map((p) => (
               <Link

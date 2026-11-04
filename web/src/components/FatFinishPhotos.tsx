@@ -7,20 +7,22 @@ import type { RecordModel } from "pocketbase";
 type PhotoRow = RecordModel & { file: string; label?: string };
 
 /**
- * Galeri foto "ODP Finish" — dokumentasi box ODP/FDT yang sudah selesai,
- * syarat tambahan setelah RFS. Beda dari foto uji OPM per port: boleh
- * diimpor dari galeri HP / file PC, tidak wajib dari kamera.
+ * Galeri foto "FAT Finish" — dokumentasi FAT yang sudah selesai & semua
+ * port-nya terverifikasi, syarat tambahan setelah RFS. Beda dari foto uji
+ * OPM per port: boleh diimpor dari galeri HP / file PC, tidak wajib kamera.
  *
  * `allowPaste`: aktifkan tempel gambar dari clipboard (Ctrl+V) — dipakai di
  * halaman admin (web, biasa ada clipboard berisi screenshot/gambar).
  * `canDelete`: tampilkan tombol hapus (hanya admin/QC yang punya izin hapus foto).
  */
-export function OdpFinishPhotos({
+export function FatFinishPhotos({
   projectId,
+  fatId,
   allowPaste = false,
   canDelete = false,
 }: {
   projectId: string;
+  fatId: string;
   allowPaste?: boolean;
   canDelete?: boolean;
 }) {
@@ -34,14 +36,14 @@ export function OdpFinishPhotos({
     pb()
       .collection("photos")
       .getFullList<PhotoRow>({
-        filter: `project = "${projectId}" && purpose = "odp_finish"`,
+        filter: `asset = "${fatId}" && purpose = "fat_finish"`,
         sort: "-created",
       })
       .then(setPhotos)
       .catch(() => setPhotos([]));
   }
 
-  useEffect(load, [projectId]);
+  useEffect(load, [fatId]);
 
   const upload = useCallback(
     async (file: File | Blob) => {
@@ -51,12 +53,13 @@ export function OdpFinishPhotos({
         const phash = await dhash(file);
         const u = currentUser();
         const form = new FormData();
-        const name = file instanceof File ? file.name : `odp-finish-${Date.now()}.jpg`;
+        const name = file instanceof File ? file.name : `fat-finish-${Date.now()}.jpg`;
         form.append("file", file, name);
         form.append("project", projectId);
-        form.append("label", "ODP Finish");
+        form.append("asset", fatId);
+        form.append("label", "FAT Finish");
         form.append("source", "gallery");
-        form.append("purpose", "odp_finish");
+        form.append("purpose", "fat_finish");
         form.append("taken_at", new Date().toISOString());
         form.append("phash", phash);
         form.append("uploaded_by", u?.id || "");
@@ -68,7 +71,7 @@ export function OdpFinishPhotos({
         setBusy(false);
       }
     },
-    [projectId]
+    [projectId, fatId]
   );
 
   function onPick(e: React.ChangeEvent<HTMLInputElement>) {
@@ -115,9 +118,9 @@ export function OdpFinishPhotos({
       className={`flex flex-col gap-2 ${allowPaste ? "outline-none" : ""}`}
     >
       <div className="flex flex-wrap gap-2 items-center">
-        <input ref={inputRef} type="file" accept="image/*" onChange={onPick} className="hidden" id={`odp-finish-${projectId}`} />
+        <input ref={inputRef} type="file" accept="image/*" onChange={onPick} className="hidden" id={`fat-finish-${fatId}`} />
         <label
-          htmlFor={`odp-finish-${projectId}`}
+          htmlFor={`fat-finish-${fatId}`}
           className="cursor-pointer px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white"
         >
           {busy ? "Mengunggah..." : "+ Tambah foto"}
@@ -130,7 +133,7 @@ export function OdpFinishPhotos({
       </div>
       {err && <p className="text-xs text-warn">{err}</p>}
       {photos === null && <p className="text-xs text-muted">Memuat...</p>}
-      {photos?.length === 0 && <p className="text-xs text-muted">Belum ada foto ODP finish.</p>}
+      {photos?.length === 0 && <p className="text-xs text-muted">Belum ada foto finish untuk FAT ini.</p>}
       {photos && photos.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
           {photos.map((p) => (

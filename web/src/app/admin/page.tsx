@@ -111,7 +111,7 @@ export default function AdminDashboard() {
                 Impor KMZ
               </Link>
               <Link href={`/admin/proyek/${p.id}/odp-finish`} className="text-xs text-accent underline">
-                Foto ODP Finish
+                Foto Finish FAT
               </Link>
             </div>
           </div>
