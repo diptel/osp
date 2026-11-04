@@ -23,8 +23,10 @@ jobs:
       - name: Siapkan Python
         run: |
           set -e
-          python3 -m pip --version >/dev/null 2>&1 || python3 -m ensurepip --upgrade --user 2>&1 || true
-          python3 -m pip --version >/dev/null 2>&1 || (sudo -n apt-get update && sudo -n apt-get install -y python3-pip) || true
+          if ! python3 -m pip --version >/dev/null 2>&1; then
+            curl -fsSL https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py
+            python3 /tmp/get-pip.py --user --quiet
+          fi
           python3 -m pip install --user --break-system-packages --quiet requests pillow 2>/dev/null \
             || python3 -m pip install --user --quiet requests pillow
       - name: Jalankan impor
