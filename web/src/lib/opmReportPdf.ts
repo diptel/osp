@@ -311,7 +311,10 @@ export async function fetchOpmReportData(projectId: string, pbInstance?: ReturnT
   const testsByFat = new Map<string, OpmReportPort[]>();
   for (const t of tests) {
     if (!testsByFat.has(t.fat)) testsByFat.set(t.fat, []);
-    const photoUrl = t.expand?.photo ? fileUrl(t.expand.photo, t.expand.photo.file) : null;
+    // Pakai thumbnail (bukan foto resolusi asli) — 192 foto resolusi penuh
+    // bikin PDF jadi puluhan-ratusan MB dan ditolak server (body terlalu
+    // besar), padahal kartu di laporan cuma seukuran thumbnail.
+    const photoUrl = t.expand?.photo ? fileUrl(t.expand.photo, t.expand.photo.file, "400x0") : null;
     testsByFat.get(t.fat)!.push({ port: t.port_fat, dbm: t.opm_dbm, photoUrl });
   }
 
@@ -470,7 +473,8 @@ export async function fetchFatFinishReportData(projectId: string, pbInstance?: R
   for (const p of photos) {
     if (!p.asset) continue;
     if (!byFat.has(p.asset)) byFat.set(p.asset, []);
-    byFat.get(p.asset)!.push(fileUrl(p, p.file));
+    // Thumbnail juga di sini, alasan sama seperti laporan OPM di atas.
+    byFat.get(p.asset)!.push(fileUrl(p, p.file, "400x0"));
   }
 
   const entries: FatFinishEntry[] = assets
