@@ -104,13 +104,21 @@ export default function FatListPage() {
             </span>
           )}
         </div>
-        <button
-          onClick={downloadPdf}
-          disabled={downloading}
-          className="self-start text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 text-white disabled:opacity-50"
-        >
-          {downloading ? "Membuat PDF..." : "⬇ Unduh laporan PDF"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={downloadPdf}
+            disabled={downloading}
+            className="self-start text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 text-white disabled:opacity-50"
+          >
+            {downloading ? "Membuat PDF..." : "⬇ Unduh laporan PDF"}
+          </button>
+          <Link
+            href={`/teknisi/proyek/${projectId}/odp-finish`}
+            className="self-start text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 text-white"
+          >
+            📷 Foto Finish FAT
+          </Link>
+        </div>
         {lines.length > 1 && (
           <div className="grid gap-1 p-1 bg-[#2A2D35] rounded-lg" style={{ gridTemplateColumns: `repeat(${lines.length}, minmax(0,1fr))` }}>
             {lines.map((l) => (
