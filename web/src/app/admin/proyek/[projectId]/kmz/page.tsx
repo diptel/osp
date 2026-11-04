@@ -138,17 +138,20 @@ export default function KmzImportPage() {
       const routeCol = pb().collection("routes");
       const existingRoutes = await routeCol.getFullList<RouteRow>({ filter: `project = "${projectId}"` });
       const haveRoutes = new Set(existingRoutes.map((r) => r.code));
-      for (const c of [...parsed.cable, ...parsed.sling]) {
+      const routeInputs = [
+        ...parsed.cable.map((c) => ({ code: c.code, line: c.line, path: c.path, kind: c.kind as string, length_m: c.length_m, cable_type: c.cable_type })),
+        ...parsed.sling.map((s) => ({ code: s.code, line: s.line, path: s.path, kind: "sling", length_m: s.length_m, cable_type: "" })),
+      ];
+      for (const c of routeInputs) {
         if (haveRoutes.has(c.code)) continue;
         const geom = geomLengthM(c.path);
-        const cableType = "cable_type" in c ? c.cable_type : "";
-        const cores = cableType.match(/(\d+)\s*C/);
+        const cores = c.cable_type.match(/(\d+)\s*C/);
         await routeCol.create({
           project: projectId,
-          kind: "kind" in c ? c.kind : "sling",
+          kind: c.kind,
           code: c.code,
           line: c.line,
-          cable_type: cableType,
+          cable_type: c.cable_type,
           cores: cores ? parseInt(cores[1], 10) : 0,
           length_m: c.length_m ?? geom,
           length_geom_m: geom,
