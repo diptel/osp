@@ -66,12 +66,23 @@ export default function PetaLapanganPage() {
   const layersRef = useRef<Record<string, LeafletNS.LayerGroup>>({});
   const resizeObsRef = useRef<ResizeObserver | null>(null);
 
+  // ---- lokasi GPS saya (live) ----
+  const LxRef = useRef<typeof LeafletNS | null>(null);
+  const meMarkerRef = useRef<LeafletNS.Marker | null>(null);
+  const meAccuracyRef = useRef<LeafletNS.Circle | null>(null);
+  const meHeadingRef = useRef<number | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const [following, setFollowing] = useState(false);
+  const followingRef = useRef(false);
+  const [meError, setMeError] = useState("");
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const leaflet = await import("leaflet");
       if (cancelled || !mapDivRef.current) return;
       const Lx = leaflet.default;
+      LxRef.current = Lx;
 
       if (!mapRef.current) {
         // maxZoom 19: server tile OpenStreetMap tidak punya level 20 — kalau
@@ -166,6 +177,109 @@ export default function PetaLapanganPage() {
     };
   }, [projectId]);
 
+  // Ikon posisi saya: titik biru + panah arah hadap (heading), mirip Google Maps.
+  function meIcon(Lx: typeof LeafletNS, heading: number | null) {
+    const arrow =
+      heading != null
+        ? `<div style="position:absolute;left:50%;top:50%;width:0;height:0;transform:translate(-50%,-50%) rotate(${heading}deg) translateY(-16px);border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:14px solid #2B5FB8;opacity:0.9" class="me-arrow"></div>`
+        : "";
+    return Lx.divIcon({
+      className: "",
+      html: `<div style="position:relative;width:18px;height:18px">${arrow}<div style="position:absolute;left:50%;top:50%;width:14px;height:14px;transform:translate(-50%,-50%);background:#2B5FB8;border:2.5px solid #fff;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,0.25)"></div></div>`,
+      iconSize: [18, 18],
+      iconAnchor: [9, 9],
+    });
+  }
+
+  function onPosition(pos: GeolocationPosition) {
+    const Lx = LxRef.current;
+    const map = mapRef.current;
+    if (!Lx || !map) return;
+    const latlng: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+    const heading = typeof pos.coords.heading === "number" && !Number.isNaN(pos.coords.heading) ? pos.coords.heading : meHeadingRef.current;
+
+    if (!meMarkerRef.current) {
+      meMarkerRef.current = Lx.marker(latlng, { icon: meIcon(Lx, heading), zIndexOffset: 1000, interactive: false }).addTo(map);
+    } else {
+      meMarkerRef.current.setLatLng(latlng);
+      meMarkerRef.current.setIcon(meIcon(Lx, heading));
+    }
+    if (!meAccuracyRef.current) {
+      meAccuracyRef.current = Lx.circle(latlng, {
+        radius: pos.coords.accuracy || 0,
+        color: "#2B5FB8",
+        weight: 1,
+        fillColor: "#2B5FB8",
+        fillOpacity: 0.12,
+      }).addTo(map);
+    } else {
+      meAccuracyRef.current.setLatLng(latlng);
+      meAccuracyRef.current.setRadius(pos.coords.accuracy || 0);
+    }
+    setMeError("");
+    if (followingRef.current) {
+      map.setView(latlng, Math.max(map.getZoom(), 17), { animate: true });
+    }
+  }
+
+  function onHeading(deg: number) {
+    meHeadingRef.current = deg;
+    const Lx = LxRef.current;
+    if (Lx && meMarkerRef.current) meMarkerRef.current.setIcon(meIcon(Lx, deg));
+  }
+
+  function onOrientation(e: DeviceOrientationEvent) {
+    // webkitCompassHeading (iOS, sudah 0=utara langsung) kalau ada; selain itu
+    // alpha perlu dibalik (360-alpha) supaya 0=utara, searah jarum jam.
+    const webkit = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading;
+    if (typeof webkit === "number") onHeading(webkit);
+    else if (e.absolute && e.alpha != null) onHeading((360 - e.alpha) % 360);
+  }
+
+  async function toggleFollow() {
+    if (watchIdRef.current != null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      watchIdRef.current = null;
+      window.removeEventListener("deviceorientationabsolute", onOrientation as EventListener);
+      window.removeEventListener("deviceorientation", onOrientation as EventListener);
+      setFollowing(false);
+      followingRef.current = false;
+      return;
+    }
+    if (!("geolocation" in navigator)) {
+      setMeError("Perangkat tidak mendukung GPS.");
+      return;
+    }
+    setFollowing(true);
+    followingRef.current = true;
+    watchIdRef.current = navigator.geolocation.watchPosition(onPosition, (err) => setMeError(err.message || "Gagal membaca lokasi GPS."), {
+      enableHighAccuracy: true,
+      maximumAge: 2000,
+      timeout: 15000,
+    });
+    const DOE = window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE?.requestPermission === "function") {
+      try {
+        const res = await DOE.requestPermission();
+        if (res === "granted") window.addEventListener("deviceorientation", onOrientation as EventListener);
+      } catch {
+        /* diam-diam gagal — tetap jalan tanpa arah panah */
+      }
+    } else {
+      window.addEventListener("deviceorientationabsolute", onOrientation as EventListener);
+      window.addEventListener("deviceorientation", onOrientation as EventListener);
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current != null) navigator.geolocation.clearWatch(watchIdRef.current);
+      window.removeEventListener("deviceorientationabsolute", onOrientation as EventListener);
+      window.removeEventListener("deviceorientation", onOrientation as EventListener);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function toggle(kind: string) {
     setVisible((v) => {
       const next = { ...v, [kind]: !v[kind] };
@@ -204,6 +318,21 @@ export default function PetaLapanganPage() {
           </button>
         ))}
       </div>
+
+      <button
+        onClick={toggleFollow}
+        aria-label="Ikuti lokasi saya"
+        className={`absolute bottom-4 right-3 z-[1000] w-12 h-12 rounded-full border shadow-lg flex items-center justify-center text-xl ${
+          following ? "bg-accent border-accent text-white" : "bg-card border-border text-ink"
+        }`}
+      >
+        {following ? "◎" : "📍"}
+      </button>
+      {meError && (
+        <div className="absolute bottom-20 left-3 right-16 z-[1000] bg-warnbg text-warn text-xs rounded-lg px-3 py-2">
+          {meError}
+        </div>
+      )}
     </div>
   );
 }
