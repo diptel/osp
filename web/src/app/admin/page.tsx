@@ -185,6 +185,9 @@ export default function AdminDashboard() {
               <Link href={`/admin/proyek/${p.id}/laporan`} className="text-xs text-accent underline">
                 Laporan
               </Link>
+              <Link href={`/admin/proyek/${p.id}/paket`} className="text-xs text-accent underline">
+                Paket &amp; harga
+              </Link>
               <Link href={`/admin/proyek/${p.id}/manajemen`} className="text-xs text-accent underline">
                 Manajemen
               </Link>

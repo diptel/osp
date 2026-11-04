@@ -143,13 +143,37 @@ routerAdd("GET", "/api/briix/projects/{id}/opname", (e) => {
   const pid = e.request.pathValue("id")
   e.app.findRecordById("projects", pid)
   const pkgs = e.app.findRecordsByFilter("work_packages", "project = {:p}", "type,name", 0, 0, { p: pid })
+
+  // Hitung sekali: port OPM disetujui per FAT, lalu FAT mana yang "selesai"
+  // (semua portnya disetujui) dan berapa core-nya.
+  const approvedByFat = {}
+  for (const t of e.app.findRecordsByFilter("opm_tests", "project = {:p} && status = 'approved'", "", 0, 0, { p: pid })) {
+    const f = t.getString("fat")
+    approvedByFat[f] = (approvedByFat[f] || 0) + 1
+  }
+  const portsApproved = Object.values(approvedByFat).reduce((a, b) => a + b, 0)
+  let fatsDone = 0
+  let coresDone = 0
+  for (const fat of e.app.findRecordsByFilter("assets", "project = {:p} && kind = 'fat'", "", 0, 0, { p: pid })) {
+    const need = fat.getInt("ports") || 8
+    if ((approvedByFat[fat.id] || 0) >= need) {
+      fatsDone += 1
+      const cores = fat.getInt("cores") || Math.ceil(need / 8)
+      coresDone += cores
+    }
+  }
+
   const out = []
   let total = 0
   for (const p of pkgs) {
+    let mode = p.getString("count_mode")
+    if (!mode) mode = p.getString("type") === "opm" ? "ports_approved" : "work_items"
     let qty = 0
-    if (p.getString("type") === "opm") {
-      qty = e.app.findRecordsByFilter("opm_tests", "project = {:p} && status = 'approved'", "", 0, 0, { p: pid }).length
-    } else {
+    if (mode === "ports_approved") qty = portsApproved
+    else if (mode === "fats_approved") qty = fatsDone
+    else if (mode === "fat_cores_approved") qty = coresDone
+    else if (mode === "manual") qty = p.getFloat("manual_qty")
+    else {
       for (const it of e.app.findRecordsByFilter("work_items", "package = {:k} && status = 'approved'", "", 0, 0, { k: p.id })) {
         qty += it.getFloat("qty")
       }
@@ -158,12 +182,12 @@ routerAdd("GET", "/api/briix/projects/{id}/opname", (e) => {
     total += amount
     out.push({
       package: p.id, type: p.getString("type"), name: p.getString("name"), line: p.getString("line"),
-      unit: p.getString("unit"), volume: p.getFloat("volume"), approved_qty: qty,
+      unit: p.getString("unit"), volume: p.getFloat("volume"), approved_qty: qty, count_mode: mode,
       unit_price: p.getFloat("unit_price"), amount, executor_type: p.getString("executor_type"),
       includes_material: p.getBool("includes_material"),
     })
   }
-  return e.json(200, { project: pid, packages: out, total_amount: total })
+  return e.json(200, { project: pid, packages: out, total_amount: total, fats_done: fatsDone, cores_done: coresDone, ports_approved: portsApproved })
 })
 
 // ============================================================

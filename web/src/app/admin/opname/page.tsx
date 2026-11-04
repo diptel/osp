@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { pb, fileUrl } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 import { rupiah } from "@/components/ExpenseList";
@@ -14,11 +15,19 @@ type OpnamePkg = {
   unit: string;
   volume: number;
   approved_qty: number;
+  count_mode?: string;
   unit_price: number;
   amount: number;
   executor_type: string;
 };
-type OpnameCalc = { project: string; packages: OpnamePkg[]; total_amount: number };
+type OpnameCalc = { project: string; packages: OpnamePkg[]; total_amount: number; fats_done?: number; cores_done?: number; ports_approved?: number };
+const MODE_SHORT: Record<string, string> = {
+  ports_approved: "per port OPM",
+  fats_approved: "per FAT selesai",
+  fat_cores_approved: "per core FAT selesai",
+  work_items: "progres kerja QC",
+  manual: "manual",
+};
 type OpnameRow = RecordModel & {
   project: string;
   package: string;
@@ -40,7 +49,7 @@ const STATUS_LABEL: Record<string, string> = {
   lunas: "Lunas",
 };
 const STATUS_ORDER = ["draft", "terbit", "dibayar_sebagian", "lunas"];
-const UNIT_LABEL: Record<string, string> = { m: "meter", tiang: "tiang", titik: "titik", port: "port", paket: "paket" };
+const UNIT_LABEL: Record<string, string> = { m: "meter", tiang: "tiang", titik: "titik", port: "port", fat: "FAT", core: "core", paket: "paket" };
 
 /**
  * Opname & pembayaran: pilih proyek → hitungan otomatis per paket (volume
@@ -211,9 +220,20 @@ export default function OpnamePage() {
 
       {/* Hitungan otomatis per paket */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-4 py-3 flex items-center justify-between">
+        <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-sm font-semibold">Progres disetujui QC per paket</p>
-          {calc && <p className="text-xs text-muted">Total nilai {rupiah(calc.total_amount)}</p>}
+          <p className="text-xs text-muted">
+            {calc && (
+              <>
+                {calc.fats_done ?? 0} FAT selesai · {calc.cores_done ?? 0} core · {calc.ports_approved ?? 0} port · total {rupiah(calc.total_amount)} ·{" "}
+              </>
+            )}
+            {pid && (
+              <Link href={`/admin/proyek/${pid}/paket`} className="text-accent underline">
+                Atur paket &amp; harga
+              </Link>
+            )}
+          </p>
         </div>
         {calc === null && <p className="px-4 pb-4 text-xs text-muted">Menghitung...</p>}
         {calc && calc.packages.length === 0 && (
@@ -241,7 +261,7 @@ export default function OpnamePage() {
                       <span className="font-semibold">{p.name}</span>
                       <span className="block text-[11px] text-faint">
                         {p.type}
-                        {p.line ? ` · line ${p.line}` : ""} · {p.executor_type}
+                        {p.line ? ` · line ${p.line}` : ""} · {p.executor_type} · {MODE_SHORT[p.count_mode || ""] || ""}
                       </span>
                     </td>
                     <td className="px-3 py-2 text-right">
@@ -274,7 +294,7 @@ export default function OpnamePage() {
           </table>
         )}
         <p className="px-4 py-3 text-[11px] text-faint border-t border-border">
-          Klik harga satuan untuk mengubahnya. Opname baru hanya memuat progres yang belum pernah di-opname.
+          Klik harga satuan untuk mengubahnya; satuan & cara hitung diatur di &quot;Atur paket &amp; harga&quot;. Opname baru hanya memuat progres yang belum pernah di-opname.
         </p>
       </div>
 
