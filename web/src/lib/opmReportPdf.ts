@@ -242,6 +242,13 @@ async function drawFatPage(
   }
 }
 
+export class ReportCancelled extends Error {
+  constructor() {
+    super("Dibatalkan");
+    this.name = "ReportCancelled";
+  }
+}
+
 export async function buildOpmReportPdf(opts: {
   project: OpmReportProject;
   fats: OpmReportFat[];
@@ -249,6 +256,8 @@ export async function buildOpmReportPdf(opts: {
   dateLabel?: string;
   /** Sembunyikan panel foto (dipakai portal klien publik — file foto tidak bisa diakses tanpa login). */
   hidePhotos?: boolean;
+  /** Dicek di antara tiap halaman FAT — kalau true, generate dihentikan (lempar ReportCancelled). */
+  isCancelled?: () => boolean;
 }): Promise<jsPDF> {
   const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl) : null;
   const dateLabel =
@@ -258,6 +267,7 @@ export async function buildOpmReportPdf(opts: {
   const doc = new jsPDF({ unit: "pt", format: "letter" });
   let first = true;
   for (const fat of opts.fats) {
+    if (opts.isCancelled?.()) throw new ReportCancelled();
     if (!first) doc.addPage();
     first = false;
     await drawFatPage(doc, fat, opts.project, dateLabel, clientLogo, !!opts.hidePhotos);
@@ -408,6 +418,8 @@ export async function buildFatFinishReportPdf(opts: {
   project: OpmReportProject;
   entries: FatFinishEntry[];
   clientLogoUrl?: string | null;
+  /** Dicek di antara tiap kartu FAT — kalau true, generate dihentikan (lempar ReportCancelled). */
+  isCancelled?: () => boolean;
 }): Promise<jsPDF> {
   const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl) : null;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
@@ -419,11 +431,13 @@ export async function buildFatFinishReportPdf(opts: {
 
   let first = true;
   for (let i = 0; i < opts.entries.length; i += perPage) {
+    if (opts.isCancelled?.()) throw new ReportCancelled();
     if (!first) doc.addPage();
     first = false;
     drawFatFinishHeader(doc, opts.project, clientLogo);
     const slice = opts.entries.slice(i, i + perPage);
     for (let j = 0; j < slice.length; j++) {
+      if (opts.isCancelled?.()) throw new ReportCancelled();
       const y = top + j * (cardH + gap);
       await drawFatFinishCard(doc, slice[j], M, y, W - 2 * M, cardH);
     }

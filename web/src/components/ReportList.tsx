@@ -6,7 +6,9 @@ import {
   fetchOpmReportData,
   buildFatFinishReportPdf,
   fetchFatFinishReportData,
+  ReportCancelled,
 } from "@/lib/opmReportPdf";
+import { jobKey, isGenerating, isCancelled, startJob, cancelJob, finishJob, subscribe } from "@/lib/reportJobs";
 import type { RecordModel } from "pocketbase";
 
 type ReportRow = RecordModel & { file: string; label?: string; created: string; kind?: string };
@@ -32,8 +34,9 @@ export function ReportList({
   canDelete?: boolean;
   canGenerate?: boolean;
 }) {
+  const key = jobKey(projectId, kind);
   const [reports, setReports] = useState<ReportRow[] | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const [generating, setGenerating] = useState(() => isGenerating(key));
   const [err, setErr] = useState("");
 
   function load() {
@@ -47,12 +50,21 @@ export function ReportList({
 
   useEffect(load, [projectId, kind]);
 
+  // Ikuti status job yang tersimpan di registry level-modul — supaya kalau
+  // komponen ini remount (pindah halaman lalu balik lagi), status "masih
+  // diproses" tetap kelihatan, bukan mulai dari nol.
+  useEffect(() => {
+    setGenerating(isGenerating(key));
+    return subscribe(key, () => setGenerating(isGenerating(key)));
+  }, [key]);
+
   function generate() {
+    if (isGenerating(key)) return; // sudah ada proses berjalan, jangan dobel
     // Sengaja tidak di-await di sini — proses jalan di belakang layar (promise
     // tetap lanjut walau Anda pindah halaman di app ini), tidak perlu menunggu
     // di halaman ini. Hanya berhenti kalau tab/app benar-benar ditutup.
     setErr("");
-    setGenerating(true);
+    startJob(key);
     (async () => {
       try {
         const u = currentUser();
@@ -60,28 +72,45 @@ export function ReportList({
         let blob: Blob;
         let label: string;
         let clusterName = "";
+        const checkCancelled = () => isCancelled(key);
 
         if (kind === "fat_finish") {
           const data = await fetchFatFinishReportData(projectId);
+          if (checkCancelled()) throw new ReportCancelled();
           if (data.entries.length === 0) {
             setErr("Belum ada foto Finish FAT yang diunggah untuk direkap.");
+            finishJob(key);
             return;
           }
-          const doc = await buildFatFinishReportPdf({ project: data.project, entries: data.entries, clientLogoUrl: data.clientLogoUrl });
+          const doc = await buildFatFinishReportPdf({
+            project: data.project,
+            entries: data.entries,
+            clientLogoUrl: data.clientLogoUrl,
+            isCancelled: checkCancelled,
+          });
           blob = doc.output("blob");
           label = `Rekap Finish FAT — ${stamp}`;
           clusterName = data.clusterName;
         } else {
           const data = await fetchOpmReportData(projectId);
+          if (checkCancelled()) throw new ReportCancelled();
           if (data.fats.length === 0) {
             setErr("Belum ada hasil uji OPM yang disetujui untuk dilaporkan.");
+            finishJob(key);
             return;
           }
-          const doc = await buildOpmReportPdf({ project: data.project, fats: data.fats, clientLogoUrl: data.clientLogoUrl });
+          const doc = await buildOpmReportPdf({
+            project: data.project,
+            fats: data.fats,
+            clientLogoUrl: data.clientLogoUrl,
+            isCancelled: checkCancelled,
+          });
           blob = doc.output("blob");
           label = `Laporan OPM — ${stamp}`;
           clusterName = data.clusterName;
         }
+
+        if (checkCancelled()) throw new ReportCancelled();
 
         const form = new FormData();
         form.append("project", projectId);
@@ -91,10 +120,15 @@ export function ReportList({
         form.append("generated_by", u?.id || "");
         await pb().collection("reports").create(form);
         load();
+        finishJob(key);
       } catch (e) {
-        setErr("Gagal membuat laporan: " + (e instanceof Error ? e.message : String(e)));
-      } finally {
-        setGenerating(false);
+        if (e instanceof ReportCancelled) {
+          finishJob(key);
+          return;
+        }
+        const msg = "Gagal membuat laporan: " + (e instanceof Error ? e.message : String(e));
+        setErr(msg);
+        finishJob(key, msg);
       }
     })();
   }
@@ -112,28 +146,37 @@ export function ReportList({
   return (
     <div className="flex flex-col gap-2">
       {canGenerate && (
-        <div className="flex flex-col gap-1.5">
-          <button
-            onClick={generate}
-            disabled={generating}
-            className="self-start px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
-          >
-            {generating ? "Memproses..." : "+ Generate laporan baru"}
-          </button>
-          {generating && (
-            <p className="text-[11px] text-muted">
-              Diproses di belakang layar — boleh pindah halaman, nanti muncul otomatis di daftar bawah kalau sudah
-              selesai. (Berhenti kalau tab/app ditutup.)
-            </p>
-          )}
-        </div>
+        <button
+          onClick={generate}
+          disabled={generating}
+          className="self-start px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
+        >
+          {generating ? "Sedang diproses..." : "+ Generate laporan baru"}
+        </button>
       )}
       {err && <p className="text-xs text-warn">{err}</p>}
       {reports === null && <p className="text-xs text-muted">Memuat...</p>}
-      {reports?.length === 0 && <p className="text-xs text-muted">Belum ada laporan tersimpan.</p>}
-      {reports && reports.length > 0 && (
+      {reports?.length === 0 && !generating && <p className="text-xs text-muted">Belum ada laporan tersimpan.</p>}
+      {(generating || (reports && reports.length > 0)) && (
         <ul className="flex flex-col gap-1.5">
-          {reports.map((r) => (
+          {generating && (
+            <li className="bg-[#FAFAF8] border border-dashed border-line2 rounded-lg px-3 py-2 flex items-center gap-2">
+              <span className="flex-1 min-w-0 text-xs text-subtle">
+                <span className="font-semibold">⏳ Sedang membuat {KIND_LABEL[kind]}...</span>
+                <span className="block text-faint">
+                  Diproses di belakang layar — boleh pindah halaman, nanti muncul di sini kalau sudah selesai.
+                </span>
+              </span>
+              <button
+                onClick={() => cancelJob(key)}
+                className="text-xs text-warn font-semibold px-2 py-1 shrink-0"
+                title="Batalkan"
+              >
+                ✕ Batalkan
+              </button>
+            </li>
+          )}
+          {reports?.map((r) => (
             <li key={r.id} className="bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2">
               <span className="flex-1 min-w-0 text-xs">
                 <a href={fileUrl(r, r.file)} target="_blank" rel="noreferrer" className="text-accent underline font-semibold">
