@@ -572,8 +572,10 @@ export async function fetchFatFinishReportData(projectId: string, pbInstance?: R
   for (const p of photos) {
     if (!p.asset) continue;
     if (!byFat.has(p.asset)) byFat.set(p.asset, []);
-    // Thumbnail juga di sini, alasan sama seperti laporan OPM di atas.
-    byFat.get(p.asset)!.push(urlFor(client, p, p.file, "400x0"));
+    // Thumbnail 1200px (bukan 400px seperti OPM): kotak Finish FAT seperempat
+    // halaman, tulisan/label di FAT harus terbaca. Jumlah fotonya sedikit
+    // (umumnya 1 per FAT), jadi PDF-nya tetap wajar.
+    byFat.get(p.asset)!.push(urlFor(client, p, p.file, "1200x0"));
   }
 
   const entries: FatFinishEntry[] = assets
