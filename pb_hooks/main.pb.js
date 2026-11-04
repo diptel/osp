@@ -18,18 +18,23 @@ onRecordCreateRequest((e) => {
     throw new BadRequestError("Foto harus diambil langsung dari kamera aplikasi, bukan dari galeri.")
   }
 
-  // 2. Foto dobel: bandingkan sidik foto dengan semua foto di proyek yang sama
+  // 2. Foto dobel: bandingkan sidik foto dengan semua foto di proyek yang sama.
+  //    Dilewati untuk foto "FAT Finish" — itu cuma syarat dokumentasi, wajar
+  //    kalau beberapa box/closure yang sudah selesai kelihatan mirip, bukan
+  //    indikasi foto dicurangi seperti pada foto uji OPM per port.
   const hash = r.getString("phash").toLowerCase()
   r.set("phash", hash)
-  const others = e.app.findRecordsByFilter("photos", "project = {:p}", "", 0, 0, { p: r.getString("project") })
-  for (const o of others) {
-    if (u.hamming(hash, o.getString("phash")) <= u.DUP_BITS) {
-      const label = o.getString("label") || o.id
-      let where = ""
-      if (o.getString("asset")) {
-        try { where = " (" + e.app.findRecordById("assets", o.getString("asset")).getString("code") + ")" } catch (_) {}
+  if (r.getString("purpose") !== "fat_finish") {
+    const others = e.app.findRecordsByFilter("photos", "project = {:p}", "", 0, 0, { p: r.getString("project") })
+    for (const o of others) {
+      if (u.hamming(hash, o.getString("phash")) <= u.DUP_BITS) {
+        const label = o.getString("label") || o.id
+        let where = ""
+        if (o.getString("asset")) {
+          try { where = " (" + e.app.findRecordById("assets", o.getString("asset")).getString("code") + ")" } catch (_) {}
+        }
+        throw new BadRequestError(`Foto ini sama dengan foto yang sudah dipakai: ${label}${where}. Ambil foto baru di lokasi.`)
       }
-      throw new BadRequestError(`Foto ini sama dengan foto yang sudah dipakai: ${label}${where}. Ambil foto baru di lokasi.`)
     }
   }
 
