@@ -1,6 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { pb } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 
@@ -18,8 +18,10 @@ type OpmRow = RecordModel & {
 type ProjectRow = RecordModel & { cluster_name: string; cluster_id: string };
 
 export default function LaporanOpmPage() {
+  const router = useRouter();
   const [rows, setRows] = useState<OpmRow[] | null>(null);
   const [allProjects, setAllProjects] = useState<ProjectRow[] | null>(null);
+  const [selected, setSelected] = useState("");
 
   useEffect(() => {
     pb()
@@ -30,20 +32,12 @@ export default function LaporanOpmPage() {
     pb()
       .collection("projects")
       .getFullList<ProjectRow>({ sort: "-created" })
-      .then(setAllProjects)
+      .then((rows) => {
+        setAllProjects(rows);
+        if (rows.length) setSelected((s) => s || rows[0].id);
+      })
       .catch(() => setAllProjects([]));
   }, []);
-
-  const projects = useMemo(() => {
-    const m = new Map<string, { id: string; cluster_name: string; cluster_id: string; count: number }>();
-    for (const r of rows || []) {
-      if (!r.expand?.project) continue;
-      const p = r.expand.project;
-      if (!m.has(r.project)) m.set(r.project, { id: r.project, cluster_name: p.cluster_name, cluster_id: p.cluster_id, count: 0 });
-      m.get(r.project)!.count++;
-    }
-    return Array.from(m.values());
-  }, [rows]);
 
   return (
     <div className="max-w-3xl flex flex-col gap-5">
@@ -52,36 +46,35 @@ export default function LaporanOpmPage() {
         <p className="text-sm text-muted">Hasil uji OPM per port FAT yang sudah disetujui QC.</p>
       </div>
 
-      {projects.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {projects.map((p) => (
-            <Link
-              key={p.id}
-              href={`/admin/proyek/${p.id}/laporan`}
-              className="px-3 py-2 rounded-lg text-sm font-semibold bg-ink text-white"
-            >
-              Laporan · {p.cluster_name} ({p.count} port)
-            </Link>
+      <div className="flex flex-wrap gap-2 items-center bg-card border border-border rounded-xl p-3">
+        <label className="text-xs font-semibold text-subtle">Pilih proyek</label>
+        <select
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          className="flex-1 min-w-[180px] px-2.5 py-2 rounded-lg border border-line2 text-sm bg-white"
+        >
+          {allProjects === null && <option>Memuat...</option>}
+          {allProjects?.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.cluster_name} ({p.cluster_id})
+            </option>
           ))}
-        </div>
-      )}
-
-      {allProjects && allProjects.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold">Foto Finish FAT — syarat tambahan setelah RFS</h2>
-          <div className="flex flex-wrap gap-2">
-            {allProjects.map((p) => (
-              <Link
-                key={p.id}
-                href={`/admin/proyek/${p.id}/odp-finish`}
-                className="px-3 py-2 rounded-lg text-xs font-semibold border border-border bg-card"
-              >
-                {p.cluster_name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
+        </select>
+        <button
+          disabled={!selected}
+          onClick={() => router.push(`/admin/proyek/${selected}/laporan`)}
+          className="px-3 py-2 rounded-lg text-sm font-semibold bg-ink text-white disabled:opacity-50"
+        >
+          Buka Laporan
+        </button>
+        <button
+          disabled={!selected}
+          onClick={() => router.push(`/admin/proyek/${selected}/odp-finish`)}
+          className="px-3 py-2 rounded-lg text-sm font-semibold border border-border bg-card disabled:opacity-50"
+        >
+          Foto Finish FAT
+        </button>
+      </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <table className="w-full text-sm">
