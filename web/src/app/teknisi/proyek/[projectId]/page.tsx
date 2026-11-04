@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { pb } from "@/lib/pocketbase";
+import { buildOpmReportPdf, fetchOpmReportData } from "@/lib/opmReportPdf";
 import type { RecordModel } from "pocketbase";
 
 type Asset = RecordModel & { kind: string; code: string; line: string; ports?: number; subtype?: string };
@@ -28,6 +29,7 @@ export default function FatListPage() {
   const [fats, setFats] = useState<Asset[] | null>(null);
   const [tests, setTests] = useState<OpmTest[]>([]);
   const [line, setLine] = useState<string>("");
+  const [downloading, setDownloading] = useState(false);
 
   useEffect(() => {
     pb().collection("projects").getOne<Project>(projectId).then(setProject).catch(() => void 0);
@@ -64,6 +66,28 @@ export default function FatListPage() {
 
   const visible = (fats || []).filter((f) => (f.line || "—") === line);
 
+  async function downloadPdf() {
+    setDownloading(true);
+    try {
+      const data = await fetchOpmReportData(String(projectId));
+      if (data.fats.length === 0) {
+        alert("Belum ada hasil uji OPM yang disetujui untuk diunduh.");
+        return;
+      }
+      const doc = await buildOpmReportPdf({
+        project: data.project,
+        fats: data.fats,
+        briixLogoUrl: "/app/mark.svg",
+        clientLogoUrl: data.clientLogoUrl,
+      });
+      doc.save(`Laporan-OPM-${data.clusterName || projectId}.pdf`);
+    } catch (e) {
+      alert("Gagal membuat PDF: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0">
       <header className="bg-ink text-white px-4 pt-4 pb-4 flex flex-col gap-3 shrink-0">
@@ -81,6 +105,13 @@ export default function FatListPage() {
             </span>
           )}
         </div>
+        <button
+          onClick={downloadPdf}
+          disabled={downloading}
+          className="self-start text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 text-white disabled:opacity-50"
+        >
+          {downloading ? "Membuat PDF..." : "⬇ Unduh laporan PDF"}
+        </button>
         {lines.length > 1 && (
           <div className="grid gap-1 p-1 bg-[#2A2D35] rounded-lg" style={{ gridTemplateColumns: `repeat(${lines.length}, minmax(0,1fr))` }}>
             {lines.map((l) => (

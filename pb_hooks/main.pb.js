@@ -179,14 +179,21 @@ routerAdd("GET", "/api/briix/portal/{token}", (e) => {
   const fats = all("assets", "project = {:p} && kind = 'fat'")
   const approved = all("opm_tests", "project = {:p} && status = 'approved'")
   const perFat = {}
-  for (const t of approved) perFat[t.getString("fat")] = (perFat[t.getString("fat")] || 0) + 1
+  const portsByFat = {}
+  for (const t of approved) {
+    const fid = t.getString("fat")
+    perFat[fid] = (perFat[fid] || 0) + 1
+    if (!portsByFat[fid]) portsByFat[fid] = []
+    portsByFat[fid].push({ port: t.getInt("port_fat"), dbm: t.getFloat("opm_dbm") })
+  }
   let portsTotal = 0
   const fatList = fats.map((f) => {
     const ports = f.getInt("ports") || 8
     portsTotal += ports
     const pos = f.get("asbuilt_pos") && f.get("asbuilt_pos").lat ? f.get("asbuilt_pos") : f.get("design_pos")
+    const tests = (portsByFat[f.id] || []).sort((a, b) => a.port - b.port)
     return { code: f.getString("code"), line: f.getString("line"), ports, ports_ok: perFat[f.id] || 0,
-             lat: pos ? pos.lat : null, lon: pos ? pos.lon : null }
+             lat: pos ? pos.lat : null, lon: pos ? pos.lon : null, tests }
   }).sort((a, b) => a.code < b.code ? -1 : 1)
 
   // Progres paket (selain OPM)
@@ -203,7 +210,8 @@ routerAdd("GET", "/api/briix/portal/{token}", (e) => {
     client: client.getString("name"),
     project: {
       code: project.getString("code"), name: project.getString("name"), region: project.getString("region"),
-      cluster_id: project.getString("cluster_id"), olt: project.getString("olt"),
+      cluster_id: project.getString("cluster_id"), cluster_name: project.getString("cluster_name"),
+      olt: project.getString("olt"), fdt_input_dbm: project.getFloat("fdt_input_dbm"),
       status: project.getString("status"), target_date: project.getString("target_date"),
     },
     opm: { ports_total: portsTotal, ports_approved: approved.length, fats: fatList },
