@@ -8,7 +8,7 @@ import {
   fetchFatFinishReportData,
   ReportCancelled,
 } from "@/lib/opmReportPdf";
-import { jobKey, isGenerating, isCancelled, startJob, cancelJob, finishJob, subscribe } from "@/lib/reportJobs";
+import { jobKey, getJob, isGenerating, isCancelled, startJob, cancelJob, finishJob, subscribe } from "@/lib/reportJobs";
 import type { RecordModel } from "pocketbase";
 
 type ReportRow = RecordModel & { file: string; label?: string; created: string; kind?: string };
@@ -52,10 +52,15 @@ export function ReportList({
 
   // Ikuti status job yang tersimpan di registry level-modul — supaya kalau
   // komponen ini remount (pindah halaman lalu balik lagi), status "masih
-  // diproses" tetap kelihatan, bukan mulai dari nol.
+  // diproses" ATAU error terakhir tetap kelihatan, bukan hilang/mulai dari nol.
   useEffect(() => {
-    setGenerating(isGenerating(key));
-    return subscribe(key, () => setGenerating(isGenerating(key)));
+    function sync() {
+      setGenerating(isGenerating(key));
+      const job = getJob(key);
+      if (job && !job.generating && job.error) setErr(job.error);
+    }
+    sync();
+    return subscribe(key, sync);
   }, [key]);
 
   function generate() {
@@ -164,7 +169,7 @@ export function ReportList({
               <span className="flex-1 min-w-0 text-xs text-subtle">
                 <span className="font-semibold">⏳ Sedang membuat {KIND_LABEL[kind]}...</span>
                 <span className="block text-faint">
-                  Diproses di belakang layar — boleh pindah halaman, nanti muncul di sini kalau sudah selesai.
+                  Prosesnya jalan di tab browser ini. Boleh pindah halaman di aplikasi, tapi jangan reload / tutup tab atau browser sampai selesai — kalau di-reload atau ditutup, prosesnya langsung berhenti tanpa jejak.
                 </span>
               </span>
               <button
