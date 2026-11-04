@@ -73,10 +73,15 @@ export default function PetaLapanganPage() {
       const Lx = leaflet.default;
 
       if (!mapRef.current) {
-        mapRef.current = Lx.map(mapDivRef.current, { zoomControl: true }).setView([-7.1035, 112.046], 15);
+        // maxZoom 19: server tile OpenStreetMap tidak punya level 20 — kalau
+        // fitBounds nekat zoom ke 20 (titik-titik berdekatan), semua tile 404.
+        mapRef.current = Lx.map(mapDivRef.current, { zoomControl: true, maxZoom: 19 }).setView(
+          [-7.1035, 112.046],
+          15
+        );
         Lx.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "&copy; OpenStreetMap",
-          maxZoom: 20,
+          maxZoom: 19,
         }).addTo(mapRef.current);
         for (const kind of Object.keys(KIND_COLOR)) {
           layersRef.current[kind] = Lx.layerGroup();
@@ -143,11 +148,11 @@ export default function PetaLapanganPage() {
         line.addTo(layersRef.current["route"]);
       }
 
-      if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
+      if (bounds.length) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 18 });
       // fitBounds butuh ukuran yang benar juga; invalidate + fit ulang sekali lagi.
       requestAnimationFrame(() => {
         map.invalidateSize();
-        if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
+        if (bounds.length) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 18 });
       });
       setCounts(cnt);
       setLoading(false);
