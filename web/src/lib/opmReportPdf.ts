@@ -328,3 +328,156 @@ export async function fetchOpmReportData(projectId: string, pbInstance?: ReturnT
     clusterName: project.cluster_name,
   };
 }
+
+// ============================================================
+// Rekap foto Finish FAT — satu kartu per FAT, berisi kode + foto-foto
+// finish-nya. Beda dari laporan OPM (per port); ini rekap dokumentasi.
+// ============================================================
+
+export type FatFinishEntry = {
+  code: string;
+  line: string;
+  photoUrls: string[];
+};
+
+function drawFatFinishHeader(doc: jsPDF, project: OpmReportProject, clientLogo: string | null) {
+  drawHeader(
+    doc,
+    "Rekap Foto Finish FAT",
+    { region: project.region, olt: project.olt, cluster_name: project.cluster_name, cluster_id: project.cluster_id },
+    clientLogo
+  );
+}
+
+async function drawFatFinishCard(doc: jsPDF, entry: FatFinishEntry, x: number, y: number, w: number, h: number) {
+  doc.setDrawColor(20, 20, 20);
+  doc.setLineWidth(1);
+  doc.rect(x, y, w, h);
+
+  const labelW = 90;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(0, 0, 0);
+  doc.text(entry.code, x + 10, y + 26);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(90, 90, 90);
+  doc.text("Line " + (entry.line || "-"), x + 10, y + 40);
+  doc.setFontSize(7.5);
+  doc.text(`${entry.photoUrls.length} foto`, x + 10, y + 52);
+  doc.line(x + labelW, y, x + labelW, y + h);
+
+  const maxThumbs = 4;
+  const shown = entry.photoUrls.slice(0, maxThumbs);
+  const pad = 8;
+  const gap = 6;
+  const areaW = w - labelW - pad * 2;
+  const thumbSize = Math.min(h - pad * 2, (areaW - gap * (shown.length - 1)) / Math.max(shown.length, 1));
+  let tx = x + labelW + pad;
+  const ty = y + (h - thumbSize) / 2;
+  for (let i = 0; i < shown.length; i++) {
+    const img = await loadImageAsJpegDataUrl(shown[i]);
+    if (img) doc.addImage(img, "JPEG", tx, ty, thumbSize, thumbSize);
+    else {
+      doc.setFillColor(235, 235, 235);
+      doc.rect(tx, ty, thumbSize, thumbSize, "F");
+    }
+    if (i === maxThumbs - 1 && entry.photoUrls.length > maxThumbs) {
+      doc.setFillColor(20, 20, 20);
+      doc.rect(tx, ty, thumbSize, thumbSize, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.text(`+${entry.photoUrls.length - maxThumbs + 1}`, tx + thumbSize / 2, ty + thumbSize / 2 + 4, { align: "center" });
+      doc.setTextColor(0, 0, 0);
+    }
+    tx += thumbSize + gap;
+  }
+  if (shown.length === 0) {
+    doc.setFillColor(235, 235, 235);
+    doc.rect(x + labelW + pad, y + pad, areaW, h - pad * 2, "F");
+    doc.setTextColor(150, 150, 150);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Belum ada foto", x + labelW + pad + areaW / 2, y + h / 2 + 3, { align: "center" });
+    doc.setTextColor(0, 0, 0);
+  }
+}
+
+export async function buildFatFinishReportPdf(opts: {
+  project: OpmReportProject;
+  entries: FatFinishEntry[];
+  clientLogoUrl?: string | null;
+}): Promise<jsPDF> {
+  const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl) : null;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+
+  const top = 110;
+  const cardH = 150;
+  const gap = 14;
+  const perPage = Math.max(1, Math.floor((H - top - M + gap) / (cardH + gap)));
+
+  let first = true;
+  for (let i = 0; i < opts.entries.length; i += perPage) {
+    if (!first) doc.addPage();
+    first = false;
+    drawFatFinishHeader(doc, opts.project, clientLogo);
+    const slice = opts.entries.slice(i, i + perPage);
+    for (let j = 0; j < slice.length; j++) {
+      const y = top + j * (cardH + gap);
+      await drawFatFinishCard(doc, slice[j], M, y, W - 2 * M, cardH);
+    }
+  }
+  if (opts.entries.length === 0) {
+    drawFatFinishHeader(doc, opts.project, clientLogo);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(120, 120, 120);
+    doc.text("Belum ada foto Finish FAT yang diunggah.", W / 2, top + 40, { align: "center" });
+  }
+  return doc;
+}
+
+/** Ambil data rekap Finish FAT (proyek + daftar FAT yang punya foto finish). */
+export async function fetchFatFinishReportData(projectId: string, pbInstance?: ReturnType<typeof pb>) {
+  const client = pbInstance || pb();
+  const project = await client.collection("projects").getOne<ProjectRec>(projectId, { expand: "client" });
+  const assets = await client
+    .collection("assets")
+    .getFullList<AssetRec>({ filter: `project = "${projectId}" && kind = "fat"`, sort: "line,code" });
+  const photos = await client
+    .collection("photos")
+    .getFullList<RecordModel & { asset: string; file: string }>({
+      filter: `project = "${projectId}" && purpose = "fat_finish"`,
+      sort: "-created",
+    });
+
+  const byFat = new Map<string, string[]>();
+  for (const p of photos) {
+    if (!p.asset) continue;
+    if (!byFat.has(p.asset)) byFat.set(p.asset, []);
+    byFat.get(p.asset)!.push(fileUrl(p, p.file));
+  }
+
+  const entries: FatFinishEntry[] = assets
+    .filter((a) => byFat.has(a.id))
+    .map((a) => ({
+      code: a.code.split(".").pop() || a.code,
+      line: a.line,
+      photoUrls: byFat.get(a.id) || [],
+    }));
+
+  return {
+    project: {
+      cluster_name: project.cluster_name,
+      cluster_id: project.cluster_id,
+      region: project.region,
+      olt: project.olt,
+      fdt_input_dbm: project.fdt_input_dbm,
+    } as OpmReportProject,
+    entries,
+    clientLogoUrl:
+      project.expand?.client?.logo ? fileUrl(project.expand.client, project.expand.client.logo) : null,
+    clusterName: project.cluster_name,
+  };
+}

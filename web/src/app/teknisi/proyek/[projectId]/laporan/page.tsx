@@ -11,6 +11,7 @@ type Project = RecordModel & { cluster_name: string; cluster_id: string };
 export default function LaporanPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
+  const [tab, setTab] = useState<"opm" | "fat_finish">("opm");
 
   useEffect(() => {
     pb().collection("projects").getOne<Project>(String(projectId)).then(setProject).catch(() => void 0);
@@ -28,8 +29,26 @@ export default function LaporanPage() {
           <p className="text-xs text-line2 mt-0.5">Laporan yang sudah dibuat admin — minta admin kalau butuh laporan baru.</p>
         </div>
       </header>
+      <div className="flex gap-2 px-4 pt-3 shrink-0">
+        <button
+          onClick={() => setTab("opm")}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
+            tab === "opm" ? "bg-ink text-white border-ink" : "border-border text-subtle"
+          }`}
+        >
+          Laporan OPM
+        </button>
+        <button
+          onClick={() => setTab("fat_finish")}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
+            tab === "fat_finish" ? "bg-ink text-white border-ink" : "border-border text-subtle"
+          }`}
+        >
+          Rekap Finish FAT
+        </button>
+      </div>
       <div className="flex-1 overflow-y-auto p-4 min-h-0">
-        <ReportList projectId={String(projectId)} clusterName={project?.cluster_name} canGenerate={false} />
+        <ReportList projectId={String(projectId)} kind={tab} canGenerate={false} />
       </div>
     </div>
   );

@@ -1,10 +1,20 @@
 "use client";
 import { useEffect, useState } from "react";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
-import { buildOpmReportPdf, fetchOpmReportData } from "@/lib/opmReportPdf";
+import {
+  buildOpmReportPdf,
+  fetchOpmReportData,
+  buildFatFinishReportPdf,
+  fetchFatFinishReportData,
+} from "@/lib/opmReportPdf";
 import type { RecordModel } from "pocketbase";
 
-type ReportRow = RecordModel & { file: string; label?: string; created: string };
+type ReportRow = RecordModel & { file: string; label?: string; created: string; kind?: string };
+
+const KIND_LABEL: Record<string, string> = {
+  opm: "Laporan OPM",
+  fat_finish: "Rekap Finish FAT",
+};
 
 /**
  * Daftar laporan PDF yang TERSIMPAN per proyek — generate sekali, bisa
@@ -13,12 +23,12 @@ type ReportRow = RecordModel & { file: string; label?: string; created: string }
  */
 export function ReportList({
   projectId,
-  clusterName,
+  kind = "opm",
   canDelete = false,
   canGenerate = true,
 }: {
   projectId: string;
-  clusterName?: string;
+  kind?: "opm" | "fat_finish";
   canDelete?: boolean;
   canGenerate?: boolean;
 }) {
@@ -27,14 +37,15 @@ export function ReportList({
   const [err, setErr] = useState("");
 
   function load() {
+    const kindFilter = kind === "opm" ? '(kind = "opm" || kind = "")' : 'kind = "fat_finish"';
     pb()
       .collection("reports")
-      .getFullList<ReportRow>({ filter: `project = "${projectId}"`, sort: "-created" })
+      .getFullList<ReportRow>({ filter: `project = "${projectId}" && ${kindFilter}`, sort: "-created" })
       .then(setReports)
       .catch(() => setReports([]));
   }
 
-  useEffect(load, [projectId]);
+  useEffect(load, [projectId, kind]);
 
   function generate() {
     // Sengaja tidak di-await di sini — proses jalan di belakang layar (promise
@@ -44,19 +55,39 @@ export function ReportList({
     setGenerating(true);
     (async () => {
       try {
-        const data = await fetchOpmReportData(projectId);
-        if (data.fats.length === 0) {
-          setErr("Belum ada hasil uji OPM yang disetujui untuk dilaporkan.");
-          return;
-        }
-        const doc = await buildOpmReportPdf({ project: data.project, fats: data.fats, clientLogoUrl: data.clientLogoUrl });
-        const blob = doc.output("blob");
         const u = currentUser();
         const stamp = new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+        let blob: Blob;
+        let label: string;
+        let clusterName = "";
+
+        if (kind === "fat_finish") {
+          const data = await fetchFatFinishReportData(projectId);
+          if (data.entries.length === 0) {
+            setErr("Belum ada foto Finish FAT yang diunggah untuk direkap.");
+            return;
+          }
+          const doc = await buildFatFinishReportPdf({ project: data.project, entries: data.entries, clientLogoUrl: data.clientLogoUrl });
+          blob = doc.output("blob");
+          label = `Rekap Finish FAT — ${stamp}`;
+          clusterName = data.clusterName;
+        } else {
+          const data = await fetchOpmReportData(projectId);
+          if (data.fats.length === 0) {
+            setErr("Belum ada hasil uji OPM yang disetujui untuk dilaporkan.");
+            return;
+          }
+          const doc = await buildOpmReportPdf({ project: data.project, fats: data.fats, clientLogoUrl: data.clientLogoUrl });
+          blob = doc.output("blob");
+          label = `Laporan OPM — ${stamp}`;
+          clusterName = data.clusterName;
+        }
+
         const form = new FormData();
         form.append("project", projectId);
-        form.append("label", `Laporan OPM — ${stamp}`);
-        form.append("file", blob, `Laporan-OPM-${data.clusterName || projectId}-${Date.now()}.pdf`);
+        form.append("kind", kind);
+        form.append("label", label);
+        form.append("file", blob, `${KIND_LABEL[kind]}-${clusterName || projectId}-${Date.now()}.pdf`);
         form.append("generated_by", u?.id || "");
         await pb().collection("reports").create(form);
         load();
@@ -106,7 +137,7 @@ export function ReportList({
             <li key={r.id} className="bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2">
               <span className="flex-1 min-w-0 text-xs">
                 <a href={fileUrl(r, r.file)} target="_blank" rel="noreferrer" className="text-accent underline font-semibold">
-                  {r.label || "Laporan OPM"}
+                  {r.label || KIND_LABEL[kind]}
                 </a>
                 <span className="block text-faint">{new Date(r.created).toLocaleString("id-ID")}</span>
               </span>
