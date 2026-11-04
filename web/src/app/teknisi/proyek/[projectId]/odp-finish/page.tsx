@@ -49,11 +49,16 @@ export default function FatFinishListPage() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      <header className="bg-ink text-white px-4 pt-4 pb-4 shrink-0">
-        <h1 className="font-semibold leading-tight">Foto Finish FAT</h1>
-        <p className="text-xs text-line2 mt-0.5">
-          Syarat tambahan setelah RFS — FAT yang 8 port-nya sudah lengkap & terverifikasi QC.
-        </p>
+      <header className="bg-ink text-white px-3 pt-3.5 pb-4 flex items-start gap-2 shrink-0">
+        <Link href={`/teknisi/proyek/${projectId}`} className="w-11 h-11 flex items-center justify-center -ml-2 -mt-1 shrink-0 text-white">
+          ←
+        </Link>
+        <div className="min-w-0">
+          <h1 className="font-semibold leading-tight">Foto Finish FAT</h1>
+          <p className="text-xs text-line2 mt-0.5">
+            Syarat tambahan setelah RFS — FAT yang 8 port-nya sudah lengkap & terverifikasi QC.
+          </p>
+        </div>
       </header>
       <ul className="flex-1 overflow-y-auto flex flex-col gap-2 p-4 min-h-0">
         {fats === null && <p className="text-sm text-muted">Memuat...</p>}
