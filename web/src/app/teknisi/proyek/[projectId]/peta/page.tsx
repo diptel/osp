@@ -79,7 +79,9 @@ export default function PetaLapanganPage() {
           [-7.1035, 112.046],
           15
         );
-        Lx.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        // Catatan: jangan pakai template {s}. (subdomain a/b/c) — OSM sudah
+        // tidak melayani itu untuk tile.openstreetmap.org, hasilnya 400.
+        Lx.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
           attribution: "&copy; OpenStreetMap",
           maxZoom: 19,
         }).addTo(mapRef.current);
