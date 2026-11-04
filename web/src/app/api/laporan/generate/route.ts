@@ -108,7 +108,9 @@ export async function POST(req: NextRequest) {
     // Node benar-benar valid (header "%PDF-" di awal, ukuran wajar) —
     // kalau jsPDF diam-diam gagal di lingkungan server, baru kelihatan di sini.
     const byteArr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes as ArrayBuffer);
-    const prefix = Buffer.from(byteArr.slice(0, 8)).toString("latin1");
+    const prefix = Array.from(byteArr.slice(0, 8))
+      .map((b) => String.fromCharCode(b))
+      .join("");
     console.log(`PDF dibuat: ${byteArr.byteLength} bytes, prefix="${prefix}"`);
 
     const form = new FormData();
