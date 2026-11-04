@@ -389,6 +389,55 @@ function drawFatFinishHeader(doc: jsPDF, project: OpmReportProject, clientLogo: 
   );
 }
 
+/** Ukuran (px) sebuah JPEG dari data URL base64, dibaca dari marker SOF —
+ *  supaya foto bisa dipasang mengikuti rasio aslinya (tidak digepengkan).
+ *  Tanpa Canvas, jadi jalan di Node maupun browser. */
+function jpegSize(dataUrl: string): { w: number; h: number } | null {
+  try {
+    const b64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+    const bin = atob(b64);
+    const n = bin.length;
+    let i = 2;
+    while (i < n) {
+      if (bin.charCodeAt(i) !== 0xff) {
+        i++;
+        continue;
+      }
+      const marker = bin.charCodeAt(i + 1);
+      if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        const h = (bin.charCodeAt(i + 5) << 8) | bin.charCodeAt(i + 6);
+        const w = (bin.charCodeAt(i + 7) << 8) | bin.charCodeAt(i + 8);
+        return w > 0 && h > 0 ? { w, h } : null;
+      }
+      const segLen = (bin.charCodeAt(i + 2) << 8) | bin.charCodeAt(i + 3);
+      i += 2 + segLen;
+    }
+  } catch {
+    /* abaikan */
+  }
+  return null;
+}
+
+/** Gambar foto di dalam kotak (cx,cy,cw,ch) dengan rasio asli, di tengah,
+ *  latar abu muda. Kalau gagal dimuat, kotak abu saja. */
+function drawPhotoFit(doc: jsPDF, img: string | null, cx: number, cy: number, cw: number, ch: number) {
+  doc.setFillColor(240, 240, 240);
+  doc.rect(cx, cy, cw, ch, "F");
+  if (!img) return;
+  const size = jpegSize(img);
+  let dw = cw;
+  let dh = ch;
+  if (size) {
+    const scale = Math.min(cw / size.w, ch / size.h);
+    dw = size.w * scale;
+    dh = size.h * scale;
+  }
+  doc.addImage(img, "JPEG", cx + (cw - dw) / 2, cy + (ch - dh) / 2, dw, dh);
+}
+
+/** Satu kotak FAT di grid 2x2: strip judul (kode, line, jumlah foto) di
+ *  atas, lalu foto-foto finish mengisi sisa kotak (1 foto penuh, 2 foto
+ *  berdampingan, 3-4 foto grid 2x2). */
 async function drawFatFinishCard(
   doc: jsPDF,
   entry: FatFinishEntry,
@@ -402,53 +451,61 @@ async function drawFatFinishCard(
   doc.setLineWidth(1);
   doc.rect(x, y, w, h);
 
-  const labelW = 90;
+  const headH = 30;
+  doc.setFillColor(245, 245, 245);
+  doc.rect(x, y, w, headH, "F");
+  doc.setDrawColor(20, 20, 20);
+  doc.line(x, y + headH, x + w, y + headH);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
+  doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
-  doc.text(entry.code, x + 10, y + 26);
+  doc.text("FAT " + entry.code, x + 8, y + 19);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(90, 90, 90);
-  doc.text("Line " + (entry.line || "-"), x + 10, y + 40);
   doc.setFontSize(7.5);
-  doc.text(`${entry.photoUrls.length} foto`, x + 10, y + 52);
-  doc.line(x + labelW, y, x + labelW, y + h);
+  doc.setTextColor(90, 90, 90);
+  doc.text(`Line ${entry.line || "-"}  ·  ${entry.photoUrls.length} foto`, x + w - 8, y + 19, { align: "right" });
+  doc.setTextColor(0, 0, 0);
 
   const maxThumbs = 4;
   const shown = entry.photoUrls.slice(0, maxThumbs);
-  const pad = 8;
-  const gap = 6;
-  const areaW = w - labelW - pad * 2;
-  const thumbSize = Math.min(h - pad * 2, (areaW - gap * (shown.length - 1)) / Math.max(shown.length, 1));
-  let tx = x + labelW + pad;
-  const ty = y + (h - thumbSize) / 2;
-  for (let i = 0; i < shown.length; i++) {
-    const img = await loadImageAsJpegDataUrl(shown[i], authToken);
-    if (img) doc.addImage(img, "JPEG", tx, ty, thumbSize, thumbSize);
-    else {
-      doc.setFillColor(235, 235, 235);
-      doc.rect(tx, ty, thumbSize, thumbSize, "F");
-    }
-    if (i === maxThumbs - 1 && entry.photoUrls.length > maxThumbs) {
-      doc.setFillColor(20, 20, 20);
-      doc.rect(tx, ty, thumbSize, thumbSize, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(12);
-      doc.text(`+${entry.photoUrls.length - maxThumbs + 1}`, tx + thumbSize / 2, ty + thumbSize / 2 + 4, { align: "center" });
-      doc.setTextColor(0, 0, 0);
-    }
-    tx += thumbSize + gap;
-  }
+  const pad = 6;
+  const gap = 5;
+  const ax = x + pad;
+  const ay = y + headH + pad;
+  const aw = w - pad * 2;
+  const ah = h - headH - pad * 2;
+
   if (shown.length === 0) {
-    doc.setFillColor(235, 235, 235);
-    doc.rect(x + labelW + pad, y + pad, areaW, h - pad * 2, "F");
+    doc.setFillColor(240, 240, 240);
+    doc.rect(ax, ay, aw, ah, "F");
     doc.setTextColor(150, 150, 150);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text("Belum ada foto", x + labelW + pad + areaW / 2, y + h / 2 + 3, { align: "center" });
+    doc.text("Belum ada foto", ax + aw / 2, ay + ah / 2 + 3, { align: "center" });
     doc.setTextColor(0, 0, 0);
+    return;
+  }
+
+  // Sel foto: 1 → penuh; 2 → dua kolom; 3-4 → grid 2x2.
+  const cols = shown.length === 1 ? 1 : 2;
+  const rows = shown.length <= 2 ? 1 : 2;
+  const cw = (aw - gap * (cols - 1)) / cols;
+  const ch = (ah - gap * (rows - 1)) / rows;
+
+  for (let i = 0; i < shown.length; i++) {
+    const cx = ax + (i % cols) * (cw + gap);
+    const cy = ay + Math.floor(i / cols) * (ch + gap);
+    const img = await loadImageAsJpegDataUrl(shown[i], authToken);
+    drawPhotoFit(doc, img, cx, cy, cw, ch);
+    if (i === maxThumbs - 1 && entry.photoUrls.length > maxThumbs) {
+      doc.setFillColor(20, 20, 20);
+      doc.rect(cx, cy, cw, ch, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.text(`+${entry.photoUrls.length - maxThumbs + 1}`, cx + cw / 2, cy + ch / 2 + 5, { align: "center" });
+      doc.setTextColor(0, 0, 0);
+    }
   }
 }
 
@@ -464,10 +521,14 @@ export async function buildFatFinishReportPdf(opts: {
   const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl, opts.authToken) : null;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
 
+  // Grid 2 kolom x 2 baris = 4 kotak per halaman (folio dibagi empat).
   const top = 110;
-  const cardH = 150;
-  const gap = 14;
-  const perPage = Math.max(1, Math.floor((H - top - M + gap) / (cardH + gap)));
+  const cols = 2;
+  const rows = 2;
+  const gap = 12;
+  const cardW = (W - 2 * M - gap * (cols - 1)) / cols;
+  const cardH = (H - top - M - gap * (rows - 1)) / rows;
+  const perPage = cols * rows;
 
   let first = true;
   for (let i = 0; i < opts.entries.length; i += perPage) {
@@ -478,8 +539,9 @@ export async function buildFatFinishReportPdf(opts: {
     const slice = opts.entries.slice(i, i + perPage);
     for (let j = 0; j < slice.length; j++) {
       if (opts.isCancelled?.()) throw new ReportCancelled();
-      const y = top + j * (cardH + gap);
-      await drawFatFinishCard(doc, slice[j], M, y, W - 2 * M, cardH, opts.authToken);
+      const x = M + (j % cols) * (cardW + gap);
+      const y = top + Math.floor(j / cols) * (cardH + gap);
+      await drawFatFinishCard(doc, slice[j], x, y, cardW, cardH, opts.authToken);
     }
   }
   if (opts.entries.length === 0) {
