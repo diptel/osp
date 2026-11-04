@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { pb, currentUser } from "@/lib/pocketbase";
-import { dhash, distanceM, getPosition } from "@/lib/dhash";
+import { dhash, distanceM, getPosition, bestPos } from "@/lib/dhash";
 import type { RecordModel } from "pocketbase";
 
 type Asset = RecordModel & {
@@ -77,7 +77,7 @@ export default function UjiOpmPage() {
     try {
       const pos = await getPosition();
       const here: [number, number] = [pos.coords.longitude, pos.coords.latitude];
-      const target = fat?.asbuilt_pos || fat?.design_pos;
+      const target = bestPos(fat?.asbuilt_pos, fat?.design_pos);
       if (target) {
         const d = distanceM(here, [target.lon, target.lat]);
         const tol = project?.gps_tolerance_m || 50;

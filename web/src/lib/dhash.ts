@@ -34,6 +34,19 @@ export function distanceM(a: [number, number], b: [number, number]): number {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
+type GeoPoint = { lon: number; lat: number } | null | undefined;
+
+/**
+ * PocketBase menyimpan geoPoint yang belum pernah diisi sebagai {lat:0,lon:0},
+ * BUKAN null — jadi `a.asbuilt_pos || a.design_pos` selalu memilih asbuilt_pos
+ * (0,0 di lautan) walau belum pernah di-set. Pakai ini, bukan `||`, di semua
+ * tempat yang fallback asbuilt_pos -> design_pos.
+ */
+export function bestPos(asbuilt: GeoPoint, design: GeoPoint): GeoPoint {
+  if (asbuilt && (asbuilt.lat !== 0 || asbuilt.lon !== 0)) return asbuilt;
+  return design;
+}
+
 export function getPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!("geolocation" in navigator)) {

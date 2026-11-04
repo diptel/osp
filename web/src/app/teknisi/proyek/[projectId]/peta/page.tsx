@@ -3,6 +3,7 @@ import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { pb } from "@/lib/pocketbase";
+import { bestPos } from "@/lib/dhash";
 import type { RecordModel } from "pocketbase";
 import type * as LeafletNS from "leaflet";
 
@@ -116,7 +117,7 @@ export default function PetaLapanganPage() {
       for (const kind of Object.keys(layersRef.current)) layersRef.current[kind].clearLayers();
 
       for (const a of assets) {
-        const pos = a.asbuilt_pos || a.design_pos;
+        const pos = bestPos(a.asbuilt_pos, a.design_pos);
         if (!pos) continue;
         cnt[a.kind] = (cnt[a.kind] || 0) + 1;
         const latlng: [number, number] = [pos.lat, pos.lon];
