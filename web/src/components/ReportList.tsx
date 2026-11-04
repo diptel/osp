@@ -1,14 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
-import {
-  buildOpmReportPdf,
-  fetchOpmReportData,
-  buildFatFinishReportPdf,
-  fetchFatFinishReportData,
-  ReportCancelled,
-} from "@/lib/opmReportPdf";
-import { jobKey, getJob, isGenerating, isCancelled, startJob, cancelJob, finishJob, subscribe } from "@/lib/reportJobs";
+import { jobKey, getJob, isGenerating, startJob, cancelJob, finishJob, subscribe, registerController } from "@/lib/reportJobs";
 import type { RecordModel } from "pocketbase";
 
 type ReportRow = RecordModel & { file: string; label?: string; created: string; kind?: string };
@@ -17,20 +10,6 @@ const KIND_LABEL: Record<string, string> = {
   opm: "Laporan OPM",
   fat_finish: "Rekap Finish FAT",
 };
-
-// PocketBase membungkus error validasi/aturan dengan pesan generik
-// ("Failed to create record."), detail per-field-nya ada di
-// error.response.data — bongkar itu supaya pesan yang tampil ke admin
-// jelas penyebabnya, bukan cuma pesan generik yang membingungkan.
-function describeReportError(e: unknown): string {
-  const anyE = e as { response?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
-  const data = anyE?.response?.data;
-  if (data && Object.keys(data).length > 0) {
-    const parts = Object.entries(data).map(([field, info]) => `${field}: ${info?.message || "tidak valid"}`);
-    return parts.join("; ");
-  }
-  return anyE?.response?.message || (e instanceof Error ? e.message : String(e));
-}
 
 /**
  * Daftar laporan PDF yang TERSIMPAN per proyek — generate sekali, bisa
@@ -85,73 +64,37 @@ export function ReportList({
 
   function generate() {
     if (isGenerating(key)) return; // sudah ada proses berjalan, jangan dobel
-    // Sengaja tidak di-await di sini — proses jalan di belakang layar (promise
-    // tetap lanjut walau Anda pindah halaman di app ini), tidak perlu menunggu
-    // di halaman ini. Hanya berhenti kalau tab/app benar-benar ditutup.
+    // Generate dikerjakan di SERVER (API route /api/laporan/generate), bukan
+    // di browser — supaya upload PDF hasilnya (bisa besar untuk proyek
+    // dengan banyak foto) tidak lewat proxy publik yang batas ukurannya
+    // kecil. Request ini tidak di-await oleh pemanggil tombol — boleh
+    // pindah halaman di app ini sambil menunggu, selama tab/browser-nya
+    // tidak ditutup/di-reload.
     setErr("");
     startJob(key);
+    const controller = new AbortController();
+    registerController(key, controller);
     (async () => {
       try {
-        const u = currentUser();
-        const stamp = new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
-        let blob: Blob;
-        let label: string;
-        let clusterName = "";
-        const checkCancelled = () => isCancelled(key);
-
-        if (kind === "fat_finish") {
-          const data = await fetchFatFinishReportData(projectId);
-          if (checkCancelled()) throw new ReportCancelled();
-          if (data.entries.length === 0) {
-            setErr("Belum ada foto Finish FAT yang diunggah untuk direkap.");
-            finishJob(key);
-            return;
-          }
-          const doc = await buildFatFinishReportPdf({
-            project: data.project,
-            entries: data.entries,
-            clientLogoUrl: data.clientLogoUrl,
-            isCancelled: checkCancelled,
-          });
-          blob = doc.output("blob");
-          label = `Rekap Finish FAT — ${stamp}`;
-          clusterName = data.clusterName;
-        } else {
-          const data = await fetchOpmReportData(projectId);
-          if (checkCancelled()) throw new ReportCancelled();
-          if (data.fats.length === 0) {
-            setErr("Belum ada hasil uji OPM yang disetujui untuk dilaporkan.");
-            finishJob(key);
-            return;
-          }
-          const doc = await buildOpmReportPdf({
-            project: data.project,
-            fats: data.fats,
-            clientLogoUrl: data.clientLogoUrl,
-            isCancelled: checkCancelled,
-          });
-          blob = doc.output("blob");
-          label = `Laporan OPM — ${stamp}`;
-          clusterName = data.clusterName;
+        const token = pb().authStore.token;
+        const res = await fetch("/app/api/laporan/generate/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: token },
+          body: JSON.stringify({ projectId, kind }),
+          signal: controller.signal,
+        });
+        const json = await res.json().catch(() => ({}) as { error?: string });
+        if (!res.ok) {
+          throw new Error(json.error || `Gagal membuat laporan (status ${res.status}).`);
         }
-
-        if (checkCancelled()) throw new ReportCancelled();
-
-        const form = new FormData();
-        form.append("project", projectId);
-        form.append("kind", kind);
-        form.append("label", label);
-        form.append("file", blob, `${KIND_LABEL[kind]}-${clusterName || projectId}-${Date.now()}.pdf`);
-        form.append("generated_by", u?.id || "");
-        await pb().collection("reports").create(form);
         load();
         finishJob(key);
       } catch (e) {
-        if (e instanceof ReportCancelled) {
+        if (controller.signal.aborted) {
           finishJob(key);
           return;
         }
-        const msg = "Gagal membuat laporan: " + describeReportError(e);
+        const msg = "Gagal membuat laporan: " + (e instanceof Error ? e.message : String(e));
         setErr(msg);
         finishJob(key, msg);
       }
@@ -192,7 +135,7 @@ export function ReportList({
               <span className="flex-1 min-w-0 text-xs text-subtle">
                 <span className="font-semibold">⏳ Sedang membuat {KIND_LABEL[kind]}...</span>
                 <span className="block text-faint">
-                  Prosesnya jalan di tab browser ini. Boleh pindah halaman di aplikasi, tapi jangan reload / tutup tab atau browser sampai selesai — kalau di-reload atau ditutup, prosesnya langsung berhenti tanpa jejak.
+                  Diproses di server, cuma menunggu respons lewat tab ini — boleh pindah halaman di aplikasi, tapi jangan tutup tab/browser atau reload sampai selesai.
                 </span>
               </span>
               <button

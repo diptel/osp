@@ -1,9 +1,19 @@
-"use client";
 // Generator PDF laporan uji OPM per FAT — format sama seperti rekap manual
 // lama (header info proyek + grid 8 kartu port per FAT, foto + nilai dBm).
+// Dipakai dari DUA tempat: server (API route generate laporan, Node — lihat
+// src/app/api/laporan/generate/route.ts) dan browser (portal klien publik,
+// hidePhotos:true, tidak pernah memuat foto). Karena itu loadImageAsJpegDataUrl
+// di bawah mendukung kedua lingkungan.
 import jsPDF from "jspdf";
-import { pb, fileUrl } from "@/lib/pocketbase";
+import { pb } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
+
+/** Bangun URL file lewat instance PocketBase yang dipakai fetch data —
+ *  supaya base URL-nya cocok (internal docker utk server, publik utk browser). */
+function urlFor(client: ReturnType<typeof pb>, record: RecordModel, filename?: string | null, thumb?: string) {
+  if (!filename) return "";
+  return client.files.getURL(record, filename, thumb ? { thumb } : undefined);
+}
 
 export type OpmReportProject = {
   cluster_name: string;
@@ -26,7 +36,21 @@ export type OpmReportFat = {
   tests: OpmReportPort[]; // hanya port yang sudah ada hasilnya
 };
 
-async function loadImageAsJpegDataUrl(url: string): Promise<string | null> {
+async function loadImageAsJpegDataUrl(url: string, authToken?: string): Promise<string | null> {
+  if (typeof window === "undefined") {
+    // Jalan di server (Node) — tidak ada Canvas/Image. Foto yang diminta di
+    // sini sudah thumbnail kecil dari PocketBase, jadi tinggal fetch & ubah
+    // ke base64, tidak perlu di-encode ulang. Butuh token karena viewRule
+    // foto mensyaratkan login (office/anggota proyek).
+    try {
+      const res = await fetch(url, authToken ? { headers: { Authorization: authToken } } : undefined);
+      if (!res.ok) return null;
+      const buf = Buffer.from(await res.arrayBuffer());
+      return `data:image/jpeg;base64,${buf.toString("base64")}`;
+    } catch {
+      return null;
+    }
+  }
   try {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -171,7 +195,8 @@ async function drawFatPage(
   project: OpmReportProject,
   dateLabel: string,
   clientLogo: string | null,
-  hidePhotos: boolean
+  hidePhotos: boolean,
+  authToken?: string
 ) {
   drawHeader(
     doc,
@@ -202,7 +227,7 @@ async function drawFatPage(
 
     if (!hidePhotos) {
       if (t?.photoUrl) {
-        const img = await loadImageAsJpegDataUrl(t.photoUrl);
+        const img = await loadImageAsJpegDataUrl(t.photoUrl, authToken);
         if (img) doc.addImage(img, "JPEG", x + cardw, yTop, pw, ch);
         else {
           doc.setFillColor(235, 235, 235);
@@ -258,8 +283,10 @@ export async function buildOpmReportPdf(opts: {
   hidePhotos?: boolean;
   /** Dicek di antara tiap halaman FAT — kalau true, generate dihentikan (lempar ReportCancelled). */
   isCancelled?: () => boolean;
+  /** Token auth (dari Authorization header PocketBase) — perlu untuk fetch foto di server. */
+  authToken?: string;
 }): Promise<jsPDF> {
-  const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl) : null;
+  const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl, opts.authToken) : null;
   const dateLabel =
     opts.dateLabel ||
     new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
@@ -270,7 +297,7 @@ export async function buildOpmReportPdf(opts: {
     if (opts.isCancelled?.()) throw new ReportCancelled();
     if (!first) doc.addPage();
     first = false;
-    await drawFatPage(doc, fat, opts.project, dateLabel, clientLogo, !!opts.hidePhotos);
+    await drawFatPage(doc, fat, opts.project, dateLabel, clientLogo, !!opts.hidePhotos, opts.authToken);
   }
   return doc;
 }
@@ -314,7 +341,7 @@ export async function fetchOpmReportData(projectId: string, pbInstance?: ReturnT
     // Pakai thumbnail (bukan foto resolusi asli) — 192 foto resolusi penuh
     // bikin PDF jadi puluhan-ratusan MB dan ditolak server (body terlalu
     // besar), padahal kartu di laporan cuma seukuran thumbnail.
-    const photoUrl = t.expand?.photo ? fileUrl(t.expand.photo, t.expand.photo.file, "400x0") : null;
+    const photoUrl = t.expand?.photo ? urlFor(client, t.expand.photo, t.expand.photo.file, "400x0") : null;
     testsByFat.get(t.fat)!.push({ port: t.port_fat, dbm: t.opm_dbm, photoUrl });
   }
 
@@ -337,7 +364,7 @@ export async function fetchOpmReportData(projectId: string, pbInstance?: ReturnT
     } as OpmReportProject,
     fats,
     clientLogoUrl:
-      project.expand?.client?.logo ? fileUrl(project.expand.client, project.expand.client.logo) : null,
+      project.expand?.client?.logo ? urlFor(client, project.expand.client, project.expand.client.logo) : null,
     clusterName: project.cluster_name,
   };
 }
@@ -362,7 +389,15 @@ function drawFatFinishHeader(doc: jsPDF, project: OpmReportProject, clientLogo: 
   );
 }
 
-async function drawFatFinishCard(doc: jsPDF, entry: FatFinishEntry, x: number, y: number, w: number, h: number) {
+async function drawFatFinishCard(
+  doc: jsPDF,
+  entry: FatFinishEntry,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  authToken?: string
+) {
   doc.setDrawColor(20, 20, 20);
   doc.setLineWidth(1);
   doc.rect(x, y, w, h);
@@ -389,7 +424,7 @@ async function drawFatFinishCard(doc: jsPDF, entry: FatFinishEntry, x: number, y
   let tx = x + labelW + pad;
   const ty = y + (h - thumbSize) / 2;
   for (let i = 0; i < shown.length; i++) {
-    const img = await loadImageAsJpegDataUrl(shown[i]);
+    const img = await loadImageAsJpegDataUrl(shown[i], authToken);
     if (img) doc.addImage(img, "JPEG", tx, ty, thumbSize, thumbSize);
     else {
       doc.setFillColor(235, 235, 235);
@@ -423,8 +458,10 @@ export async function buildFatFinishReportPdf(opts: {
   clientLogoUrl?: string | null;
   /** Dicek di antara tiap kartu FAT — kalau true, generate dihentikan (lempar ReportCancelled). */
   isCancelled?: () => boolean;
+  /** Token auth (dari Authorization header PocketBase) — perlu untuk fetch foto di server. */
+  authToken?: string;
 }): Promise<jsPDF> {
-  const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl) : null;
+  const clientLogo = opts.clientLogoUrl ? await loadImageAsJpegDataUrl(opts.clientLogoUrl, opts.authToken) : null;
   const doc = new jsPDF({ unit: "pt", format: "letter" });
 
   const top = 110;
@@ -442,7 +479,7 @@ export async function buildFatFinishReportPdf(opts: {
     for (let j = 0; j < slice.length; j++) {
       if (opts.isCancelled?.()) throw new ReportCancelled();
       const y = top + j * (cardH + gap);
-      await drawFatFinishCard(doc, slice[j], M, y, W - 2 * M, cardH);
+      await drawFatFinishCard(doc, slice[j], M, y, W - 2 * M, cardH, opts.authToken);
     }
   }
   if (opts.entries.length === 0) {
@@ -474,7 +511,7 @@ export async function fetchFatFinishReportData(projectId: string, pbInstance?: R
     if (!p.asset) continue;
     if (!byFat.has(p.asset)) byFat.set(p.asset, []);
     // Thumbnail juga di sini, alasan sama seperti laporan OPM di atas.
-    byFat.get(p.asset)!.push(fileUrl(p, p.file, "400x0"));
+    byFat.get(p.asset)!.push(urlFor(client, p, p.file, "400x0"));
   }
 
   const entries: FatFinishEntry[] = assets
@@ -495,7 +532,7 @@ export async function fetchFatFinishReportData(projectId: string, pbInstance?: R
     } as OpmReportProject,
     entries,
     clientLogoUrl:
-      project.expand?.client?.logo ? fileUrl(project.expand.client, project.expand.client.logo) : null,
+      project.expand?.client?.logo ? urlFor(client, project.expand.client, project.expand.client.logo) : null,
     clusterName: project.cluster_name,
   };
 }

@@ -1,0 +1,133 @@
+// Generate laporan PDF (OPM / Rekap Finish FAT) di SERVER, bukan di browser.
+//
+// Kenapa: generate di browser berarti upload file PDF jadi (bisa puluhan MB
+// untuk proyek dengan ratusan foto) harus lewat proxy publik (nginx 1Panel)
+// yang batas ukurannya kecil — gampang gagal dengan error generik. Di sini,
+// data diambil & PDF dibangun di proses Node (container web), lalu disimpan
+// ke PocketBase lewat jaringan docker INTERNAL (http://briixosp:8090),
+// sama sekali tidak lewat proxy publik — jadi tidak ada batas ukuran upload
+// dari sisi itu, dan jauh lebih cepat/hemat kuota untuk admin yang generate.
+//
+// Izin: tetap pakai token login admin yang mengirim request (diteruskan dari
+// header Authorization browser), bukan akun service terpisah — supaya aturan
+// akses PocketBase (createRule: harus role admin) & audit "generated_by"
+// tetap berlaku persis seperti sebelumnya.
+import { NextRequest, NextResponse } from "next/server";
+import PocketBase from "pocketbase";
+import {
+  buildOpmReportPdf,
+  fetchOpmReportData,
+  buildFatFinishReportPdf,
+  fetchFatFinishReportData,
+} from "@/lib/opmReportPdf";
+import type { AppUser } from "@/lib/pocketbase";
+
+export const runtime = "nodejs";
+
+const PB_INTERNAL_URL = process.env.PB_INTERNAL_URL || "http://briixosp:8090";
+
+const KIND_LABEL: Record<string, string> = {
+  opm: "Laporan OPM",
+  fat_finish: "Rekap Finish FAT",
+};
+
+export async function POST(req: NextRequest) {
+  const authToken = req.headers.get("authorization");
+  if (!authToken) {
+    return NextResponse.json({ error: "Belum login." }, { status: 401 });
+  }
+
+  let body: { projectId?: string; kind?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Body request tidak valid." }, { status: 400 });
+  }
+  const { projectId } = body;
+  const kind = body.kind === "fat_finish" ? "fat_finish" : "opm";
+  if (!projectId) {
+    return NextResponse.json({ error: "projectId wajib diisi." }, { status: 400 });
+  }
+
+  const client = new PocketBase(PB_INTERNAL_URL);
+  client.authStore.save(authToken, null);
+
+  try {
+    const auth = await client.collection("users").authRefresh<AppUser>();
+    const user = auth.record;
+    if (user.role !== "admin") {
+      return NextResponse.json({ error: "Hanya akun admin yang bisa generate laporan." }, { status: 403 });
+    }
+    // authRefresh menyegarkan token di authStore — pakai itu (bukan header
+    // mentah yang masuk) saat fetch foto, biar konsisten dengan token yang
+    // dipakai client untuk request-request lain.
+    const liveToken = client.authStore.token;
+
+    const stamp = new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
+    let bytes: ArrayBuffer | Uint8Array;
+    let label: string;
+    let clusterName = "";
+
+    if (kind === "fat_finish") {
+      const data = await fetchFatFinishReportData(projectId, client);
+      if (data.entries.length === 0) {
+        return NextResponse.json(
+          { error: "Belum ada foto Finish FAT yang diunggah untuk direkap." },
+          { status: 400 }
+        );
+      }
+      const doc = await buildFatFinishReportPdf({
+        project: data.project,
+        entries: data.entries,
+        clientLogoUrl: data.clientLogoUrl,
+        authToken: liveToken,
+      });
+      bytes = doc.output("arraybuffer");
+      label = `${KIND_LABEL[kind]} — ${stamp}`;
+      clusterName = data.clusterName;
+    } else {
+      const data = await fetchOpmReportData(projectId, client);
+      if (data.fats.length === 0) {
+        return NextResponse.json(
+          { error: "Belum ada hasil uji OPM yang disetujui untuk dilaporkan." },
+          { status: 400 }
+        );
+      }
+      const doc = await buildOpmReportPdf({
+        project: data.project,
+        fats: data.fats,
+        clientLogoUrl: data.clientLogoUrl,
+        authToken: liveToken,
+      });
+      bytes = doc.output("arraybuffer");
+      label = `${KIND_LABEL[kind]} — ${stamp}`;
+      clusterName = data.clusterName;
+    }
+
+    const form = new FormData();
+    form.append("project", projectId);
+    form.append("kind", kind);
+    form.append("label", label);
+    form.append(
+      "file",
+      new Blob([bytes], { type: "application/pdf" }),
+      `${KIND_LABEL[kind]}-${clusterName || projectId}-${Date.now()}.pdf`
+    );
+    form.append("generated_by", user.id);
+
+    const record = await client.collection("reports").create(form);
+    return NextResponse.json({ ok: true, id: record.id });
+  } catch (e) {
+    const anyE = e as { response?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
+    const data = anyE?.response?.data;
+    let msg: string;
+    if (data && Object.keys(data).length > 0) {
+      msg = Object.entries(data)
+        .map(([field, info]) => `${field}: ${info?.message || "tidak valid"}`)
+        .join("; ");
+    } else {
+      msg = anyE?.response?.message || (e instanceof Error ? e.message : String(e));
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
