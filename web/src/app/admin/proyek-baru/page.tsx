@@ -53,7 +53,7 @@ export default function ProyekBaruPage() {
         status: "draft",
         gps_tolerance_m: Number(form.gps_tolerance_m) || 50,
       });
-      router.replace(`/admin?created=${rec.id}`);
+      router.replace(`/admin/proyek/${rec.id}/kmz`);
     } catch {
       setErr("Gagal membuat proyek. Cek kelengkapan data.");
     } finally {

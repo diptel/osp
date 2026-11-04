@@ -75,6 +75,9 @@ export default function AdminDashboard() {
             <p className="text-xs text-muted">
               {p.expand?.client?.name} · {p.region}
             </p>
+            <Link href={`/admin/proyek/${p.id}/kmz`} className="text-xs text-accent underline mt-1">
+              Impor KMZ
+            </Link>
           </div>
         ))}
       </div>
