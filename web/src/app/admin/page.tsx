@@ -11,6 +11,8 @@ type ProjectRow = RecordModel & {
   cluster_name: string;
   cluster_id: string;
   status: string;
+  archived?: boolean;
+  cancel_reason?: string;
   expand?: { client?: RecordModel & { name: string } };
 };
 
@@ -25,6 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
   lunas: "Lunas",
   selesai: "Selesai",
   ditahan: "Ditahan",
+  dibatalkan: "Dibatalkan",
 };
 const STATUS_COLOR: Record<string, string> = {
   draft: "bg-[#EEF0F2] text-[#4A5059]",
@@ -37,8 +40,9 @@ const STATUS_COLOR: Record<string, string> = {
   lunas: "bg-okbg text-ok",
   selesai: "bg-okbg text-ok",
   ditahan: "bg-warnbg text-warn",
+  dibatalkan: "bg-[#EEF0F2] text-[#4A5059] line-through",
 };
-const STATUS_ORDER = ["draft", "survei", "desain", "berjalan", "rfs", "atp", "revisi_atp", "lunas", "selesai", "ditahan"];
+const STATUS_ORDER = ["draft", "survei", "desain", "berjalan", "rfs", "atp", "revisi_atp", "lunas", "selesai", "ditahan", "dibatalkan"];
 
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<ProjectRow[] | null>(null);
@@ -48,7 +52,7 @@ export default function AdminDashboard() {
   function load() {
     pb()
       .collection("projects")
-      .getFullList<ProjectRow>({ expand: "client", sort: "-created" })
+      .getFullList<ProjectRow>({ expand: "client", sort: "-created", filter: "archived != true" })
       .then(setProjects)
       .catch(() => setErr("Gagal memuat proyek."));
   }
@@ -56,9 +60,26 @@ export default function AdminDashboard() {
   useEffect(load, []);
 
   async function changeStatus(id: string, status: string) {
+    const data: Record<string, unknown> = { status };
+    if (status === "dibatalkan") {
+      const reason = prompt("Alasan pembatalan proyek (wajib):");
+      if (!reason || !reason.trim()) return;
+      data.cancel_reason = reason.trim();
+    }
     setBusyId(id);
     try {
-      await pb().collection("projects").update(id, { status });
+      await pb().collection("projects").update(id, data);
+      load();
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function archive(p: ProjectRow) {
+    if (!confirm(`Arsipkan proyek ${p.cluster_name || p.name}? Proyek hilang dari daftar (bisa dipulihkan di halaman Arsip).`)) return;
+    setBusyId(p.id);
+    try {
+      await pb().collection("projects").update(p.id, { archived: true, archived_at: new Date().toISOString() });
       load();
     } finally {
       setBusyId("");
@@ -106,7 +127,10 @@ export default function AdminDashboard() {
             <p className="text-xs text-muted">
               {p.expand?.client?.name} · {p.region}
             </p>
-            <div className="flex gap-3 mt-1">
+            {p.status === "dibatalkan" && p.cancel_reason && (
+              <p className="text-xs text-warn">Dibatalkan: {p.cancel_reason}</p>
+            )}
+            <div className="flex flex-wrap gap-3 mt-1">
               <Link href={`/admin/proyek/${p.id}/kmz`} className="text-xs text-accent underline">
                 Impor KMZ
               </Link>
@@ -116,6 +140,18 @@ export default function AdminDashboard() {
               <Link href={`/admin/proyek/${p.id}/laporan`} className="text-xs text-accent underline">
                 Laporan
               </Link>
+              <Link href={`/admin/proyek/${p.id}/manajemen`} className="text-xs text-accent underline">
+                Manajemen
+              </Link>
+              {(p.status === "selesai" || p.status === "dibatalkan") && (
+                <button
+                  onClick={() => archive(p)}
+                  disabled={busyId === p.id}
+                  className="text-xs text-subtle underline ml-auto disabled:opacity-50"
+                >
+                  Arsipkan
+                </button>
+              )}
             </div>
           </div>
         ))}

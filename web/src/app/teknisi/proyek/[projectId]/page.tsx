@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { pb } from "@/lib/pocketbase";
+import { pb, currentUser } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 
 type Asset = RecordModel & { kind: string; code: string; line: string; ports?: number; subtype?: string };
@@ -20,6 +20,7 @@ const STAGE_LABEL: Record<string, string> = {
   lunas: "Lunas",
   selesai: "Selesai",
   ditahan: "Ditahan",
+  dibatalkan: "Dibatalkan",
 };
 
 export default function FatListPage() {
@@ -63,6 +64,8 @@ export default function FatListPage() {
   }, [tests]);
 
   const visible = (fats || []).filter((f) => (f.line || "—") === line);
+  const role = currentUser()?.role;
+  const canManage = role === "admin" || role === "surveyor";
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -81,7 +84,7 @@ export default function FatListPage() {
             </span>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href={`/teknisi/proyek/${projectId}/laporan`}
             className="self-start text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 text-white"
@@ -94,7 +97,28 @@ export default function FatListPage() {
           >
             📷 Foto Finish FAT
           </Link>
+          {canManage && (
+            <>
+              <Link
+                href={`/teknisi/proyek/${projectId}/absensi`}
+                className="self-start text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 text-white"
+              >
+                🗓 Absensi
+              </Link>
+              <Link
+                href={`/teknisi/proyek/${projectId}/biaya`}
+                className="self-start text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 text-white"
+              >
+                💸 Biaya
+              </Link>
+            </>
+          )}
         </div>
+        {project?.status === "selesai" && (
+          <p className="text-[11px] text-line2 bg-[#2A2D35] rounded-lg px-2.5 py-1.5">
+            ✓ Proyek sudah selesai — data hanya bisa dilihat.
+          </p>
+        )}
         {lines.length > 1 && (
           <div className="grid gap-1 p-1 bg-[#2A2D35] rounded-lg" style={{ gridTemplateColumns: `repeat(${lines.length}, minmax(0,1fr))` }}>
             {lines.map((l) => (

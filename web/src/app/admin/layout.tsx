@@ -11,10 +11,12 @@ const NAV = [
   { href: "/admin/proyek-baru", label: "Proyek baru" },
   { href: "/admin/qc", label: "Antrian QC" },
   { href: "/admin/tim", label: "Tim" },
+  { href: "/admin/pekerja", label: "Pekerja" },
   { href: "/admin/klien", label: "Klien" },
   { href: "/admin/laporan-opm", label: "Laporan OPM" },
   { href: "/admin/opname", label: "Opname" },
   { href: "/admin/material", label: "Material" },
+  { href: "/admin/arsip", label: "Arsip" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
