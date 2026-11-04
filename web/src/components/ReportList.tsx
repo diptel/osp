@@ -38,6 +38,12 @@ export function ReportList({
   const [reports, setReports] = useState<ReportRow[] | null>(null);
   const [generating, setGenerating] = useState(() => isGenerating(key));
   const [err, setErr] = useState("");
+  // Server cuma izinkan role admin yang generate laporan (bukan qc/drafter
+  // lain yang juga bisa buka halaman admin) — cocokkan tombolnya di sini
+  // juga, supaya staf non-admin tidak kena error generik "Failed to create
+  // record" saat klik generate.
+  const isAdmin = currentUser()?.role === "admin";
+  const allowedToGenerate = canGenerate && isAdmin;
 
   function load() {
     const kindFilter = kind === "opm" ? '(kind = "opm" || kind = "")' : 'kind = "fat_finish"';
@@ -150,7 +156,7 @@ export function ReportList({
 
   return (
     <div className="flex flex-col gap-2">
-      {canGenerate && (
+      {allowedToGenerate && (
         <button
           onClick={generate}
           disabled={generating}
@@ -158,6 +164,9 @@ export function ReportList({
         >
           {generating ? "Sedang diproses..." : "+ Generate laporan baru"}
         </button>
+      )}
+      {canGenerate && !isAdmin && (
+        <p className="text-xs text-faint">Hanya akun admin yang bisa generate laporan baru.</p>
       )}
       {err && <p className="text-xs text-warn">{err}</p>}
       {reports === null && <p className="text-xs text-muted">Memuat...</p>}
