@@ -39,6 +39,11 @@ jobs:
           set -e
           cd "$APP_DIR"
           docker compose up -d --build
+          # pb_migrations & pb_hooks di-mount sebagai volume (bukan bagian image),
+          # jadi `up --build` TIDAK me-restart container PocketBase kalau image
+          # tidak berubah — padahal migrasi baru hanya diterapkan saat PocketBase
+          # start. Restart selalu, supaya migrasi yang baru di-push pasti jalan.
+          docker compose restart briixosp
           for i in $(seq 1 20); do
             curl -fsS http://127.0.0.1:8095/api/health && break
             sleep 3
