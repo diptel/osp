@@ -8,6 +8,10 @@ import type { RecordModel } from "pocketbase";
 type Asset = RecordModel & { kind: string; code: string; line: string; ports?: number; subtype?: string };
 type OpmTest = RecordModel & { fat: string; port_fat: number; status: string };
 type Project = RecordModel & { cluster_name: string; cluster_id: string; status: string };
+type PkgProgress = { package: string; type: string; name: string; line: string; unit: string; volume: number; approved_qty: number };
+type Progress = { packages: PkgProgress[]; fats_done: number; cores_done: number; ports_approved: number };
+
+const UNIT_LABEL: Record<string, string> = { m: "m", tiang: "tiang", titik: "titik", port: "port", fat: "FAT", core: "core", paket: "paket" };
 
 const STAGE_LABEL: Record<string, string> = {
   draft: "Draf",
@@ -29,6 +33,8 @@ export default function FatListPage() {
   const [fats, setFats] = useState<Asset[] | null>(null);
   const [tests, setTests] = useState<OpmTest[]>([]);
   const [line, setLine] = useState<string>("");
+  const [progress, setProgress] = useState<Progress | null>(null);
+  const [showProgress, setShowProgress] = useState(true);
 
   useEffect(() => {
     pb().collection("projects").getOne<Project>(projectId).then(setProject).catch(() => void 0);
@@ -45,6 +51,11 @@ export default function FatListPage() {
       .getFullList<OpmTest>({ filter: `project = "${projectId}"` })
       .then(setTests)
       .catch(() => void 0);
+    // progres per paket pekerjaan (tanpa harga) — endpoint khusus anggota proyek
+    pb()
+      .send(`/api/briix/projects/${projectId}/progress`, { method: "GET" })
+      .then((r: Progress) => setProgress(r))
+      .catch(() => setProgress({ packages: [], fats_done: 0, cores_done: 0, ports_approved: 0 }));
   }, [projectId]);
 
   const lines = useMemo(() => Array.from(new Set((fats || []).map((f) => f.line || "—"))), [fats]);
@@ -137,6 +148,40 @@ export default function FatListPage() {
       </header>
 
       <ul className="flex-1 overflow-y-auto flex flex-col gap-2 p-4 min-h-0">
+        {progress && progress.packages.length > 0 && (
+          <li className="bg-card border border-border rounded-xl px-3 py-2.5">
+            <button onClick={() => setShowProgress((v) => !v)} className="w-full flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold">Progres paket pekerjaan</span>
+              <span className="text-xs text-muted">
+                {progress.fats_done} FAT selesai · {progress.ports_approved} port ✓ {showProgress ? "▾" : "▸"}
+              </span>
+            </button>
+            {showProgress && (
+              <ul className="flex flex-col gap-2 mt-2.5">
+                {progress.packages.map((p) => {
+                  const pct = p.volume > 0 ? Math.min(100, Math.round((p.approved_qty / p.volume) * 100)) : 0;
+                  const done = p.volume > 0 && p.approved_qty >= p.volume;
+                  return (
+                    <li key={p.package} className="flex flex-col gap-1">
+                      <span className="flex items-center justify-between gap-2 text-xs">
+                        <span className="min-w-0 truncate">
+                          <span className="font-semibold">{p.name}</span>
+                          {p.line ? <span className="text-faint"> · line {p.line}</span> : null}
+                        </span>
+                        <span className={`font-mono shrink-0 ${done ? "text-ok font-semibold" : ""}`}>
+                          {p.approved_qty} / {p.volume} {UNIT_LABEL[p.unit] || p.unit}
+                        </span>
+                      </span>
+                      <span className="h-1.5 rounded-full bg-[#EEF0F2] overflow-hidden">
+                        <span className={`block h-full ${done ? "bg-ok" : "bg-accent"}`} style={{ width: `${pct}%` }} />
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </li>
+        )}
         {fats === null && <p className="text-sm text-muted">Memuat...</p>}
         {fats !== null && visible.length === 0 && <p className="text-sm text-muted">Belum ada titik FAT.</p>}
         {visible.map((f) => {

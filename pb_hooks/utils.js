@@ -35,4 +35,50 @@ function isStaff(auth) {
   return !!auth && (auth.getString("role") === "admin" || auth.getString("role") === "qc")
 }
 
-module.exports = { distanceM, hamming, assetPos, geo, isStaff, DUP_BITS: 5 }
+// Hitung progres disetujui QC per paket pekerjaan satu proyek (dipakai
+// endpoint opname admin DAN endpoint progres untuk anggota proyek).
+function packageProgress(app, pid) {
+  const pkgs = app.findRecordsByFilter("work_packages", "project = {:p}", "type,name", 0, 0, { p: pid })
+  const approvedByFat = {}
+  for (const t of app.findRecordsByFilter("opm_tests", "project = {:p} && status = 'approved'", "", 0, 0, { p: pid })) {
+    const f = t.getString("fat")
+    approvedByFat[f] = (approvedByFat[f] || 0) + 1
+  }
+  const portsApproved = Object.values(approvedByFat).reduce((a, b) => a + b, 0)
+  let fatsDone = 0
+  let coresDone = 0
+  for (const fat of app.findRecordsByFilter("assets", "project = {:p} && kind = 'fat'", "", 0, 0, { p: pid })) {
+    const need = fat.getInt("ports") || 8
+    if ((approvedByFat[fat.id] || 0) >= need) {
+      fatsDone += 1
+      coresDone += fat.getInt("cores") || Math.ceil(need / 8)
+    }
+  }
+  const out = []
+  let total = 0
+  for (const p of pkgs) {
+    let mode = p.getString("count_mode")
+    if (!mode) mode = p.getString("type") === "opm" ? "ports_approved" : "work_items"
+    let qty = 0
+    if (mode === "ports_approved") qty = portsApproved
+    else if (mode === "fats_approved") qty = fatsDone
+    else if (mode === "fat_cores_approved") qty = coresDone
+    else if (mode === "manual") qty = p.getFloat("manual_qty")
+    else {
+      for (const it of app.findRecordsByFilter("work_items", "package = {:k} && status = 'approved'", "", 0, 0, { k: p.id })) {
+        qty += it.getFloat("qty")
+      }
+    }
+    const amount = Math.round(qty * p.getFloat("unit_price"))
+    total += amount
+    out.push({
+      package: p.id, type: p.getString("type"), name: p.getString("name"), line: p.getString("line"),
+      unit: p.getString("unit"), volume: p.getFloat("volume"), approved_qty: qty, count_mode: mode,
+      unit_price: p.getFloat("unit_price"), amount, executor_type: p.getString("executor_type"),
+      includes_material: p.getBool("includes_material"),
+    })
+  }
+  return { packages: out, total_amount: total, fats_done: fatsDone, cores_done: coresDone, ports_approved: portsApproved }
+}
+
+module.exports = { distanceM, hamming, assetPos, geo, isStaff, packageProgress, DUP_BITS: 5 }

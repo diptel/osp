@@ -142,52 +142,25 @@ routerAdd("GET", "/api/briix/projects/{id}/opname", (e) => {
   if (!e.auth || e.auth.getString("role") !== "admin") throw new ForbiddenError("Khusus admin.")
   const pid = e.request.pathValue("id")
   e.app.findRecordById("projects", pid)
-  const pkgs = e.app.findRecordsByFilter("work_packages", "project = {:p}", "type,name", 0, 0, { p: pid })
+  const r = require(`${__hooks}/utils.js`).packageProgress(e.app, pid)
+  return e.json(200, Object.assign({ project: pid }, r))
+})
 
-  // Hitung sekali: port OPM disetujui per FAT, lalu FAT mana yang "selesai"
-  // (semua portnya disetujui) dan berapa core-nya.
-  const approvedByFat = {}
-  for (const t of e.app.findRecordsByFilter("opm_tests", "project = {:p} && status = 'approved'", "", 0, 0, { p: pid })) {
-    const f = t.getString("fat")
-    approvedByFat[f] = (approvedByFat[f] || 0) + 1
-  }
-  const portsApproved = Object.values(approvedByFat).reduce((a, b) => a + b, 0)
-  let fatsDone = 0
-  let coresDone = 0
-  for (const fat of e.app.findRecordsByFilter("assets", "project = {:p} && kind = 'fat'", "", 0, 0, { p: pid })) {
-    const need = fat.getInt("ports") || 8
-    if ((approvedByFat[fat.id] || 0) >= need) {
-      fatsDone += 1
-      const cores = fat.getInt("cores") || Math.ceil(need / 8)
-      coresDone += cores
-    }
-  }
-
-  const out = []
-  let total = 0
-  for (const p of pkgs) {
-    let mode = p.getString("count_mode")
-    if (!mode) mode = p.getString("type") === "opm" ? "ports_approved" : "work_items"
-    let qty = 0
-    if (mode === "ports_approved") qty = portsApproved
-    else if (mode === "fats_approved") qty = fatsDone
-    else if (mode === "fat_cores_approved") qty = coresDone
-    else if (mode === "manual") qty = p.getFloat("manual_qty")
-    else {
-      for (const it of e.app.findRecordsByFilter("work_items", "package = {:k} && status = 'approved'", "", 0, 0, { k: p.id })) {
-        qty += it.getFloat("qty")
-      }
-    }
-    const amount = Math.round(qty * p.getFloat("unit_price"))
-    total += amount
-    out.push({
-      package: p.id, type: p.getString("type"), name: p.getString("name"), line: p.getString("line"),
-      unit: p.getString("unit"), volume: p.getFloat("volume"), approved_qty: qty, count_mode: mode,
-      unit_price: p.getFloat("unit_price"), amount, executor_type: p.getString("executor_type"),
-      includes_material: p.getBool("includes_material"),
-    })
-  }
-  return e.json(200, { project: pid, packages: out, total_amount: total, fats_done: fatsDone, cores_done: coresDone, ports_approved: portsApproved })
+// Progres paket untuk anggota proyek (app teknisi) — TANPA harga/nominal.
+routerAdd("GET", "/api/briix/projects/{id}/progress", (e) => {
+  if (!e.auth) throw new ForbiddenError("Perlu login.")
+  const pid = e.request.pathValue("id")
+  e.app.findRecordById("projects", pid)
+  const role = e.auth.getString("role")
+  const office = role === "admin" || role === "qc" || role === "drafter"
+  const member = (e.auth.get("projects") || []).indexOf(pid) >= 0
+  if (!office && !member) throw new ForbiddenError("Bukan anggota proyek ini.")
+  const r = require(`${__hooks}/utils.js`).packageProgress(e.app, pid)
+  const packages = r.packages.map((p) => ({
+    package: p.package, type: p.type, name: p.name, line: p.line, unit: p.unit,
+    volume: p.volume, approved_qty: p.approved_qty, count_mode: p.count_mode,
+  }))
+  return e.json(200, { project: pid, packages, fats_done: r.fats_done, cores_done: r.cores_done, ports_approved: r.ports_approved })
 })
 
 // ============================================================
