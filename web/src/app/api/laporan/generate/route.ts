@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     const liveToken = client.authStore.token;
 
     const stamp = new Date().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" });
-    let bytes: ArrayBuffer | Uint8Array;
+    let bytes: ArrayBuffer;
     let label: string;
     let clusterName = "";
 
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
         clientLogoUrl: data.clientLogoUrl,
         authToken: liveToken,
       });
-      bytes = doc.output("arraybuffer");
+      bytes = doc.output("arraybuffer") as ArrayBuffer;
       label = `${KIND_LABEL[kind]} — ${stamp}`;
       clusterName = data.clusterName;
     } else {
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         clientLogoUrl: data.clientLogoUrl,
         authToken: liveToken,
       });
-      bytes = doc.output("arraybuffer");
+      bytes = doc.output("arraybuffer") as ArrayBuffer;
       label = `${KIND_LABEL[kind]} — ${stamp}`;
       clusterName = data.clusterName;
     }
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
     // Diagnostik sementara: pastikan buffer PDF yang dihasilkan jsPDF di
     // Node benar-benar valid (header "%PDF-" di awal, ukuran wajar) —
     // kalau jsPDF diam-diam gagal di lingkungan server, baru kelihatan di sini.
-    const byteArr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes as ArrayBuffer);
+    const byteArr: Uint8Array = new Uint8Array(bytes);
     const prefix = Array.from(byteArr.slice(0, 8))
       .map((b) => String.fromCharCode(b))
       .join("");
