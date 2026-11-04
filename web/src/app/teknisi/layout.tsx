@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AuthGate } from "@/components/AuthGate";
 import { logout } from "@/lib/pocketbase";
 import { BriixMark, BriixWordmark } from "@/components/BriixLogo";
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 export default function TeknisiLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -31,15 +32,18 @@ export default function TeknisiLayout({ children }: { children: React.ReactNode 
                 <BriixMark size={22} tone="dark" />
                 <BriixWordmark compact />
               </span>
-              <button
-                onClick={() => {
-                  logout();
-                  router.replace("/login");
-                }}
-                className="text-xs text-line2"
-              >
-                Keluar
-              </button>
+              <span className="flex items-center gap-2">
+                <InstallAppButton tone="dark" />
+                <button
+                  onClick={() => {
+                    logout();
+                    router.replace("/login");
+                  }}
+                  className="text-xs text-line2"
+                >
+                  Keluar
+                </button>
+              </span>
             </header>
           )}
           <main className="flex-1 flex flex-col min-h-0">{children}</main>

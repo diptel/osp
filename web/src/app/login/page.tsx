@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, isOfficeRole, type AppUser } from "@/lib/pocketbase";
 import { BriixMark } from "@/components/BriixLogo";
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -74,9 +75,10 @@ export default function LoginPage() {
           </p>
         </form>
 
-        <p className="text-xs text-faint leading-relaxed border-t border-white/10 pt-5">
-          Bisa dipasang ke layar utama HP · tetap jalan saat offline
-        </p>
+        <div className="flex items-center justify-between gap-3 border-t border-white/10 pt-5">
+          <p className="text-xs text-faint leading-relaxed">Bisa dipasang ke layar utama HP · tetap jalan saat offline</p>
+          <InstallAppButton tone="dark" />
+        </div>
       </div>
     </div>
   );

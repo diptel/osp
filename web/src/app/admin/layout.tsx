@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { AuthGate } from "@/components/AuthGate";
 import { currentUser, logout } from "@/lib/pocketbase";
 import { BriixMark, BriixWordmark } from "@/components/BriixLogo";
+import { InstallAppButton } from "@/components/InstallAppButton";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -44,15 +45,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 );
               })}
             </nav>
-            <button
-              onClick={() => {
-                logout();
-                router.replace("/login");
-              }}
-              className="mx-3 mb-5 px-3 py-2.5 rounded-lg text-sm font-medium text-line2 hover:bg-white/10 text-left"
-            >
-              Keluar
-            </button>
+            <div className="mx-3 mb-5 flex flex-col gap-1.5">
+              <InstallAppButton tone="dark" />
+              <button
+                onClick={() => {
+                  logout();
+                  router.replace("/login");
+                }}
+                className="px-3 py-2.5 rounded-lg text-sm font-medium text-line2 hover:bg-white/10 text-left"
+              >
+                Keluar
+              </button>
+            </div>
           </aside>
           <div className="flex-1 flex flex-col min-w-0">
             <header className="md:hidden flex items-center justify-between px-4 py-3 bg-ink text-white">
@@ -60,15 +64,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 <BriixMark size={22} tone="dark" />
                 <BriixWordmark compact />
               </span>
-              <button
-                onClick={() => {
-                  logout();
-                  router.replace("/login");
-                }}
-                className="text-xs text-line2"
-              >
-                Keluar
-              </button>
+              <span className="flex items-center gap-2">
+                <InstallAppButton tone="dark" />
+                <button
+                  onClick={() => {
+                    logout();
+                    router.replace("/login");
+                  }}
+                  className="text-xs text-line2"
+                >
+                  Keluar
+                </button>
+              </span>
             </header>
             <nav className="md:hidden flex gap-1 px-3 py-2 overflow-x-auto bg-white border-b border-border">
               {NAV.map((n) => (
