@@ -35,6 +35,7 @@ export default function AntrianQcPage() {
   const [relocsDone, setRelocsDone] = useState<RelocRow[] | null>(null);
   const [busyId, setBusyId] = useState("");
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   function load() {
     pb()
@@ -92,6 +93,25 @@ export default function AntrianQcPage() {
     }
   }
 
+  async function approveAll(col: "opm_tests" | "work_items" | "relocations", rows: RecordModel[] | null) {
+    if (!rows || rows.length === 0) return;
+    if (!confirm(`Setujui semua ${rows.length} item ini? Tindakan ini tidak bisa dibatalkan massal.`)) return;
+    setBulkBusy(true);
+    try {
+      const uid = currentUser()?.id;
+      for (const r of rows) {
+        try {
+          await pb().collection(col).update(r.id, { status: "approved", qc_note: "", qc_by: uid, qc_at: new Date().toISOString() });
+        } catch {
+          // lewati satu yang gagal, lanjut ke sisanya
+        }
+      }
+      load();
+    } finally {
+      setBulkBusy(false);
+    }
+  }
+
   const TABS: { key: typeof tab; label: string; count: number | undefined }[] = [
     { key: "opm", label: "Uji OPM", count: opm?.length },
     { key: "item", label: "Progres kerja", count: items?.length },
@@ -137,6 +157,15 @@ export default function AntrianQcPage() {
         <div className="flex flex-col gap-2">
           {opm === null && <p className="text-sm text-muted">Memuat...</p>}
           {opm?.length === 0 && <p className="text-sm text-muted">Tidak ada yang menunggu.</p>}
+          {opm && opm.length > 0 && (
+            <button
+              disabled={bulkBusy}
+              onClick={() => approveAll("opm_tests", opm)}
+              className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
+            >
+              {bulkBusy ? "Memproses..." : `Setujui semua (${opm.length})`}
+            </button>
+          )}
           {opm?.map((o) => (
             <div key={o.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
               <div className="flex items-center gap-3">
@@ -172,6 +201,15 @@ export default function AntrianQcPage() {
         <div className="flex flex-col gap-2">
           {items === null && <p className="text-sm text-muted">Memuat...</p>}
           {items?.length === 0 && <p className="text-sm text-muted">Tidak ada yang menunggu.</p>}
+          {items && items.length > 0 && (
+            <button
+              disabled={bulkBusy}
+              onClick={() => approveAll("work_items", items)}
+              className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
+            >
+              {bulkBusy ? "Memproses..." : `Setujui semua (${items.length})`}
+            </button>
+          )}
           {items?.map((it) => (
             <div key={it.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
               <div className="flex items-center gap-3">
@@ -200,6 +238,15 @@ export default function AntrianQcPage() {
         <div className="flex flex-col gap-2">
           {relocs === null && <p className="text-sm text-muted">Memuat...</p>}
           {relocs?.length === 0 && <p className="text-sm text-muted">Tidak ada yang menunggu.</p>}
+          {relocs && relocs.length > 0 && (
+            <button
+              disabled={bulkBusy}
+              onClick={() => approveAll("relocations", relocs)}
+              className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
+            >
+              {bulkBusy ? "Memproses..." : `Setujui semua (${relocs.length})`}
+            </button>
+          )}
           {relocs?.map((r) => (
             <div key={r.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
               <div className="flex items-center gap-3">
