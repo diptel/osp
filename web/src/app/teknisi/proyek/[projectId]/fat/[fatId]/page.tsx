@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { pb, currentUser } from "@/lib/pocketbase";
 import { dhash, distanceM, getPosition, bestPos } from "@/lib/dhash";
-import { OdpFinishPhotos } from "@/components/OdpFinishPhotos";
 import type { RecordModel } from "pocketbase";
 
 type Asset = RecordModel & {
@@ -262,13 +261,6 @@ export default function UjiOpmPage() {
           </p>
         )}
         {err && <p className="text-xs text-warn">{err}</p>}
-
-        <div className="border-t border-border pt-3 mt-1">
-          <p className="text-xs font-semibold text-subtle mb-2">
-            Foto ODP Finish (proyek) · syarat tambahan setelah RFS
-          </p>
-          <OdpFinishPhotos projectId={String(projectId)} />
-        </div>
       </div>
 
       <div className="p-3 bg-card border-t border-border grid grid-cols-2 gap-2.5 shrink-0">

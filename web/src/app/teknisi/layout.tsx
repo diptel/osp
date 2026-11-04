@@ -18,6 +18,7 @@ export default function TeknisiLayout({ children }: { children: React.ReactNode 
         { href: `/teknisi/proyek/${pid}/peta`, label: "Peta" },
         { href: `/teknisi/proyek/${pid}/kabel`, label: "Kabel" },
         { href: `/teknisi/proyek/${pid}/tiang`, label: "Tiang" },
+        { href: `/teknisi/proyek/${pid}/odp-finish`, label: "Finish" },
       ]
     : [];
 
@@ -44,7 +45,7 @@ export default function TeknisiLayout({ children }: { children: React.ReactNode 
           )}
           <main className="flex-1 flex flex-col min-h-0">{children}</main>
           {showNav && (
-            <nav className="grid grid-cols-4 bg-card border-t border-border px-1 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5 shrink-0 sticky bottom-0 z-10">
+            <nav className="grid grid-cols-5 bg-card border-t border-border px-1 pb-[max(env(safe-area-inset-bottom),6px)] pt-1.5 shrink-0 sticky bottom-0 z-10">
               {NAV.map((n) => {
                 const active = pathname === n.href;
                 return (

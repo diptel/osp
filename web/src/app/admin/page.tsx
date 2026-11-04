@@ -106,9 +106,14 @@ export default function AdminDashboard() {
             <p className="text-xs text-muted">
               {p.expand?.client?.name} · {p.region}
             </p>
-            <Link href={`/admin/proyek/${p.id}/kmz`} className="text-xs text-accent underline mt-1">
-              Impor KMZ
-            </Link>
+            <div className="flex gap-3 mt-1">
+              <Link href={`/admin/proyek/${p.id}/kmz`} className="text-xs text-accent underline">
+                Impor KMZ
+              </Link>
+              <Link href={`/admin/proyek/${p.id}/odp-finish`} className="text-xs text-accent underline">
+                Foto ODP Finish
+              </Link>
+            </div>
           </div>
         ))}
       </div>

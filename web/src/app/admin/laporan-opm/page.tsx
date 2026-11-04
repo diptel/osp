@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { pb } from "@/lib/pocketbase";
 import { buildOpmReportPdf, fetchOpmReportData } from "@/lib/opmReportPdf";
-import { OdpFinishPhotos } from "@/components/OdpFinishPhotos";
 import type { RecordModel } from "pocketbase";
 
 type OpmRow = RecordModel & {
@@ -83,14 +83,19 @@ export default function LaporanOpmPage() {
       )}
 
       {allProjects && allProjects.length > 0 && (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <h2 className="text-sm font-semibold">Foto ODP Finish — syarat tambahan setelah RFS</h2>
-          {allProjects.map((p) => (
-            <div key={p.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
-              <p className="text-xs font-semibold text-subtle">{p.cluster_name}</p>
-              <OdpFinishPhotos projectId={p.id} allowPaste canDelete />
-            </div>
-          ))}
+          <div className="flex flex-wrap gap-2">
+            {allProjects.map((p) => (
+              <Link
+                key={p.id}
+                href={`/admin/proyek/${p.id}/odp-finish`}
+                className="px-3 py-2 rounded-lg text-xs font-semibold border border-border bg-card"
+              >
+                {p.cluster_name}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
