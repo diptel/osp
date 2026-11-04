@@ -29,7 +29,8 @@ export function FatFinishPhotos({
   const [photos, setPhotos] = useState<PhotoRow[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
   const zoneRef = useRef<HTMLDivElement>(null);
 
   function load() {
@@ -46,7 +47,7 @@ export function FatFinishPhotos({
   useEffect(load, [fatId]);
 
   const upload = useCallback(
-    async (file: File | Blob) => {
+    async (file: File | Blob, source: "camera" | "gallery") => {
       setErr("");
       setBusy(true);
       try {
@@ -58,7 +59,7 @@ export function FatFinishPhotos({
         form.append("project", projectId);
         form.append("asset", fatId);
         form.append("label", "FAT Finish");
-        form.append("source", "gallery");
+        form.append("source", source);
         form.append("purpose", "fat_finish");
         form.append("taken_at", new Date().toISOString());
         form.append("phash", phash);
@@ -74,10 +75,15 @@ export function FatFinishPhotos({
     [projectId, fatId]
   );
 
-  function onPick(e: React.ChangeEvent<HTMLInputElement>) {
+  function onPickCamera(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
-    if (f) upload(f);
-    if (inputRef.current) inputRef.current.value = "";
+    if (f) upload(f, "camera");
+    if (cameraRef.current) cameraRef.current.value = "";
+  }
+  function onPickGallery(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (f) upload(f, "gallery");
+    if (galleryRef.current) galleryRef.current.value = "";
   }
 
   useEffect(() => {
@@ -89,7 +95,7 @@ export function FatFinishPhotos({
         if (item.type.startsWith("image/")) {
           const blob = item.getAsFile();
           if (blob) {
-            upload(blob);
+            upload(blob, "gallery");
             e.preventDefault();
           }
           break;
@@ -118,12 +124,34 @@ export function FatFinishPhotos({
       className={`flex flex-col gap-2 ${allowPaste ? "outline-none" : ""}`}
     >
       <div className="flex flex-wrap gap-2 items-center">
-        <input ref={inputRef} type="file" accept="image/*" onChange={onPick} className="hidden" id={`fat-finish-${fatId}`} />
+        <input
+          ref={cameraRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onPickCamera}
+          className="hidden"
+          id={`fat-finish-cam-${fatId}`}
+        />
         <label
-          htmlFor={`fat-finish-${fatId}`}
+          htmlFor={`fat-finish-cam-${fatId}`}
           className="cursor-pointer px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white"
         >
-          {busy ? "Mengunggah..." : "+ Tambah foto"}
+          {busy ? "Mengunggah..." : "📷 Kamera"}
+        </label>
+        <input
+          ref={galleryRef}
+          type="file"
+          accept="image/*"
+          onChange={onPickGallery}
+          className="hidden"
+          id={`fat-finish-gal-${fatId}`}
+        />
+        <label
+          htmlFor={`fat-finish-gal-${fatId}`}
+          className="cursor-pointer px-3 py-2 rounded-lg text-xs font-semibold border border-border bg-card"
+        >
+          {busy ? "Mengunggah..." : "🖼️ Galeri / File"}
         </label>
         {allowPaste && (
           <span className="text-xs text-muted">
