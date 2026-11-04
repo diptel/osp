@@ -36,13 +36,18 @@ export default function AntrianQcPage() {
   const [busyId, setBusyId] = useState("");
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [loadErr, setLoadErr] = useState("");
 
   function load() {
+    setLoadErr("");
     pb()
       .collection("opm_tests")
       .getFullList<OpmRow>({ filter: 'status = "submitted"', expand: "fat,photo,project", sort: "created" })
       .then(setOpm)
-      .catch(() => setOpm([]));
+      .catch((e) => {
+        setOpm([]);
+        setLoadErr(`Gagal memuat Uji OPM: ${e?.status ?? ""} ${e?.message ?? e}`);
+      });
     pb()
       .collection("work_items")
       .getFullList<WorkItemRow>({ filter: 'status = "submitted"', expand: "package,project", sort: "created" })
@@ -137,7 +142,11 @@ export default function AntrianQcPage() {
       <div>
         <h1 className="text-xl font-semibold">Antrian QC</h1>
         <p className="text-sm text-muted">Tinjau dan setujui laporan dari lapangan.</p>
+        <p className="text-[11px] text-faint mt-1">
+          Login sebagai: {currentUser()?.email || "?"} · role: {currentUser()?.role || "?"}
+        </p>
       </div>
+      {loadErr && <p className="text-xs text-warn bg-warnbg border border-warn rounded-lg p-2">{loadErr}</p>}
 
       <div className="flex gap-2">
         {TABS.map((t) => (
