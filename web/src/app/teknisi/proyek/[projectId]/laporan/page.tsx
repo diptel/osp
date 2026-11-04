@@ -25,11 +25,11 @@ export default function LaporanPage() {
         <div className="min-w-0">
           <p className="text-xs text-line2">{project?.cluster_id}</p>
           <h1 className="font-semibold leading-tight">Laporan — {project?.cluster_name || "Memuat..."}</h1>
-          <p className="text-xs text-line2 mt-0.5">Laporan tersimpan, tidak perlu generate ulang tiap mau lihat.</p>
+          <p className="text-xs text-line2 mt-0.5">Laporan yang sudah dibuat admin — minta admin kalau butuh laporan baru.</p>
         </div>
       </header>
       <div className="flex-1 overflow-y-auto p-4 min-h-0">
-        <ReportList projectId={String(projectId)} clusterName={project?.cluster_name} />
+        <ReportList projectId={String(projectId)} clusterName={project?.cluster_name} canGenerate={false} />
       </div>
     </div>
   );
