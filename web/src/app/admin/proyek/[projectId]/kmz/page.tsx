@@ -22,7 +22,10 @@ export default function KmzImportPage() {
   const [parsed, setParsed] = useState<ParsedKmz | null>(null);
   const [parseErr, setParseErr] = useState("");
   const [fatPorts, setFatPorts] = useState(8);
-  const [makePackages, setMakePackages] = useState(true);
+  const [pkgKabel, setPkgKabel] = useState(true);
+  const [pkgTiang, setPkgTiang] = useState(true);
+  const [pkgJointing, setPkgJointing] = useState(true);
+  const [pkgOpm, setPkgOpm] = useState(true);
   const [makeMaterials, setMakeMaterials] = useState(true);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
@@ -160,31 +163,32 @@ export default function KmzImportPage() {
         bump("route");
       }
 
-      // ---- work_packages (opsional, cuma kalau proyek belum punya) ----
-      if (makePackages) {
+      // ---- work_packages (opsional per jenis, cuma kalau proyek belum punya paket itu) ----
+      if (pkgKabel || pkgTiang || pkgJointing || pkgOpm) {
         const pkgCol = pb().collection("work_packages");
-        const existingPkgs = await pkgCol.getFullList({ filter: `project = "${projectId}"` });
-        if (existingPkgs.length === 0) {
-          const lines = Array.from(new Set(parsed.fat.map((f) => f.line))).sort();
-          const cableLenByLine = new Map<string, number>();
-          for (const c of parsed.cable) cableLenByLine.set(c.line, (cableLenByLine.get(c.line) || 0) + (c.length_m || 0));
-          const pkgs: { type: string; name: string; line: string; unit: string; volume: number }[] = [];
+        const existingPkgs = await pkgCol.getFullList<RecordModel & { type: string }>({ filter: `project = "${projectId}"` });
+        const haveTypes = new Set(existingPkgs.map((p) => p.type));
+        const lines = Array.from(new Set(parsed.fat.map((f) => f.line))).sort();
+        const cableLenByLine = new Map<string, number>();
+        for (const c of parsed.cable) cableLenByLine.set(c.line, (cableLenByLine.get(c.line) || 0) + (c.length_m || 0));
+        const pkgs: { type: string; name: string; line: string; unit: string; volume: number }[] = [];
+        if (pkgKabel && !haveTypes.has("kabel")) {
+          for (const ln of lines) pkgs.push({ type: "kabel", name: `Tarik kabel Line ${ln}`, line: ln, unit: "m", volume: cableLenByLine.get(ln) || 0 });
+        }
+        if (pkgTiang && !haveTypes.has("tiang")) {
           for (const ln of lines) {
-            pkgs.push({ type: "kabel", name: `Tarik kabel Line ${ln}`, line: ln, unit: "m", volume: cableLenByLine.get(ln) || 0 });
-            pkgs.push({
-              type: "tiang",
-              name: `Tanam tiang Line ${ln}`,
-              line: ln,
-              unit: "tiang",
-              volume: parsed.pole.filter((p) => p.line === ln).length,
-            });
+            pkgs.push({ type: "tiang", name: `Tanam tiang Line ${ln}`, line: ln, unit: "tiang", volume: parsed.pole.filter((p) => p.line === ln).length });
           }
+        }
+        if (pkgJointing && !haveTypes.has("jointing")) {
           pkgs.push({ type: "jointing", name: "Jointing FDT + FAT", line: "", unit: "titik", volume: parsed.fdt.length + parsed.fat.length });
+        }
+        if (pkgOpm && !haveTypes.has("opm")) {
           pkgs.push({ type: "opm", name: "Uji OPM per port FAT", line: "", unit: "port", volume: parsed.fat.length * fatPorts });
-          for (const p of pkgs) {
-            await pkgCol.create({ project: projectId, ...p, executor_type: "tim", status: "rencana" });
-            bump("work_packages");
-          }
+        }
+        for (const p of pkgs) {
+          await pkgCol.create({ project: projectId, ...p, executor_type: "tim", status: "rencana" });
+          bump("work_packages");
         }
       }
 
@@ -268,10 +272,25 @@ export default function KmzImportPage() {
               className={input}
             />
           </label>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={makePackages} onChange={(e) => setMakePackages(e.target.checked)} />
-            Buat paket kerja default (tarik kabel, tanam tiang, jointing, uji OPM per line)
-          </label>
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium text-subtle">Buat paket kerja — centang cuma yang jadi tanggung jawab BRIIX di proyek ini</p>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={pkgKabel} onChange={(e) => setPkgKabel(e.target.checked)} />
+              Tarik kabel (per line)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={pkgTiang} onChange={(e) => setPkgTiang(e.target.checked)} />
+              Tanam tiang (per line)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={pkgJointing} onChange={(e) => setPkgJointing(e.target.checked)} />
+              Jointing FDT + FAT
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={pkgOpm} onChange={(e) => setPkgOpm(e.target.checked)} />
+              Uji OPM per port FAT
+            </label>
+          </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={makeMaterials} onChange={(e) => setMakeMaterials(e.target.checked)} />
             Isi kebutuhan material dari KMZ (kabel, tiang, FAT, slack)
