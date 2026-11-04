@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
 import { DatePickerId, todayIso, formatTanggalId } from "@/components/DatePickerId";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import type { RecordModel } from "pocketbase";
 
 export const EXPENSE_CATEGORY: Record<string, string> = {
@@ -85,12 +86,11 @@ export function ExpenseList({ projectId, canDelete = false }: { projectId: strin
   }
 
   async function remove(id: string) {
-    if (!confirm("Hapus biaya ini?")) return;
     try {
       await pb().collection("project_expenses").delete(id);
       load();
     } catch {
-      alert("Gagal menghapus (perlu izin admin).");
+      setMsg("Gagal menghapus biaya (perlu izin admin).");
     }
   }
 
@@ -164,9 +164,7 @@ export function ExpenseList({ projectId, canDelete = false }: { projectId: strin
               </a>
             )}
             {canDelete && (
-              <button onClick={() => remove(r.id)} className="text-xs text-warn font-semibold px-2 py-1 shrink-0">
-                Hapus
-              </button>
+              <ConfirmButton label="Hapus" question="Hapus biaya?" onConfirm={() => remove(r.id)} className="text-xs text-warn font-semibold px-2 py-1 shrink-0" />
             )}
           </li>
         ))}

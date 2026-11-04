@@ -107,13 +107,14 @@ export function FatFinishPhotos({
     return () => el?.removeEventListener("paste", onPaste as EventListener);
   }, [allowPaste, upload]);
 
+  const [delAsk, setDelAsk] = useState("");
   async function onDelete(id: string) {
-    if (!confirm("Hapus foto ini?")) return;
     try {
       await pb().collection("photos").delete(id);
+      setDelAsk("");
       load();
     } catch {
-      alert("Gagal menghapus (perlu izin admin).");
+      setDelAsk("");
     }
   }
 
@@ -173,15 +174,26 @@ export function FatFinishPhotos({
                   className="w-full aspect-square object-cover rounded-lg border border-border"
                 />
               </a>
-              {canDelete && (
-                <button
-                  onClick={() => onDelete(p.id)}
-                  className="absolute top-1 right-1 w-5 h-5 rounded-full bg-ink/80 text-white text-xs leading-5 text-center"
-                  title="Hapus"
-                >
-                  ×
-                </button>
-              )}
+              {canDelete &&
+                (delAsk === p.id ? (
+                  <span className="absolute inset-x-1 bottom-1 flex items-center justify-center gap-1 bg-ink/85 rounded-md px-1 py-1 text-[11px] text-white">
+                    Hapus?
+                    <button onClick={() => onDelete(p.id)} className="font-semibold px-1.5 rounded bg-warn">
+                      Ya
+                    </button>
+                    <button onClick={() => setDelAsk("")} className="px-1">
+                      Tidak
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setDelAsk(p.id)}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-ink/80 text-white text-xs leading-5 text-center"
+                    title="Hapus"
+                  >
+                    ×
+                  </button>
+                ))}
             </div>
           ))}
         </div>

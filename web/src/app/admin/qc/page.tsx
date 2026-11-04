@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 
@@ -133,7 +134,6 @@ export default function AntrianQcPage() {
 
   async function approveAll(col: "opm_tests" | "work_items" | "relocations", rows: RecordModel[] | null) {
     if (!rows || rows.length === 0) return;
-    if (!confirm(`Setujui semua ${rows.length} item ini? Tindakan ini tidak bisa dibatalkan massal.`)) return;
     setBulkBusy(true);
     try {
       const uid = currentUser()?.id;
@@ -200,13 +200,14 @@ export default function AntrianQcPage() {
           {opm === null && <p className="text-sm text-muted">Memuat...</p>}
           {opm?.length === 0 && <p className="text-sm text-muted">Tidak ada yang menunggu.</p>}
           {opm && opm.length > 0 && (
-            <button
+            <ConfirmButton
+              label={bulkBusy ? "Memproses..." : `Setujui semua (${opm.length})`}
+              question={`Setujui semua ${opm.length} item?`}
+              yesClassName="bg-ink text-white"
+              onConfirm={() => approveAll("opm_tests", opm)}
               disabled={bulkBusy}
-              onClick={() => approveAll("opm_tests", opm)}
               className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
-            >
-              {bulkBusy ? "Memproses..." : `Setujui semua (${opm.length})`}
-            </button>
+            />
           )}
           {opm?.map((o) => (
             <div key={o.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
@@ -244,13 +245,14 @@ export default function AntrianQcPage() {
           {items === null && <p className="text-sm text-muted">Memuat...</p>}
           {items?.length === 0 && <p className="text-sm text-muted">Tidak ada yang menunggu.</p>}
           {items && items.length > 0 && (
-            <button
+            <ConfirmButton
+              label={bulkBusy ? "Memproses..." : `Setujui semua (${items.length})`}
+              question={`Setujui semua ${items.length} item?`}
+              yesClassName="bg-ink text-white"
+              onConfirm={() => approveAll("work_items", items)}
               disabled={bulkBusy}
-              onClick={() => approveAll("work_items", items)}
               className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
-            >
-              {bulkBusy ? "Memproses..." : `Setujui semua (${items.length})`}
-            </button>
+            />
           )}
           {items?.map((it) => (
             <div key={it.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
@@ -281,13 +283,14 @@ export default function AntrianQcPage() {
           {relocs === null && <p className="text-sm text-muted">Memuat...</p>}
           {relocs?.length === 0 && <p className="text-sm text-muted">Tidak ada yang menunggu.</p>}
           {relocs && relocs.length > 0 && (
-            <button
+            <ConfirmButton
+              label={bulkBusy ? "Memproses..." : `Setujui semua (${relocs.length})`}
+              question={`Setujui semua ${relocs.length} item?`}
+              yesClassName="bg-ink text-white"
+              onConfirm={() => approveAll("relocations", relocs)}
               disabled={bulkBusy}
-              onClick={() => approveAll("relocations", relocs)}
               className="self-start px-3 py-1.5 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
-            >
-              {bulkBusy ? "Memproses..." : `Setujui semua (${relocs.length})`}
-            </button>
+            />
           )}
           {relocs?.map((r) => (
             <div key={r.id} className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">

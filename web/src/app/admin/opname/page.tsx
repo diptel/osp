@@ -65,6 +65,11 @@ export default function OpnamePage() {
   const [rows, setRows] = useState<OpnameRow[] | null>(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
+  // Semua konfirmasi/isian di dalam halaman — bukan confirm()/prompt()
+  // browser yang bisa dibisukan Chrome setelah beberapa dialog.
+  const [ask, setAsk] = useState<{ pkg: OpnamePkg; qty: number; amount: number } | null>(null);
+  const [priceEdit, setPriceEdit] = useState<{ id: string; value: string } | null>(null);
+  const [paidEdit, setPaidEdit] = useState<{ id: string; value: string } | null>(null);
 
   useEffect(() => {
     pb()
@@ -103,15 +108,21 @@ export default function OpnamePage() {
     already.set(r.package, cur);
   }
 
-  async function createOpname(p: OpnamePkg) {
+  function createOpname(p: OpnamePkg) {
     const done = already.get(p.package) || { qty: 0, amount: 0 };
     const qty = Math.max(0, p.approved_qty - done.qty);
     const amount = Math.round(qty * p.unit_price);
     if (qty <= 0) {
-      alert("Tidak ada progres baru yang disetujui QC untuk paket ini sejak opname terakhir.");
+      setMsg("Tidak ada progres baru yang disetujui QC untuk paket ini sejak opname terakhir.");
       return;
     }
-    if (!confirm(`Buat berita acara opname "${p.name}"?\n\n${qty} ${UNIT_LABEL[p.unit] || p.unit} × ${rupiah(p.unit_price)} = ${rupiah(amount)}`)) return;
+    setMsg("");
+    setAsk({ pkg: p, qty, amount });
+  }
+
+  async function doCreateOpname() {
+    if (!ask) return;
+    const { pkg: p, qty, amount } = ask;
     setBusy(p.package);
     try {
       const today = new Date().toISOString().slice(0, 10);
@@ -127,6 +138,7 @@ export default function OpnamePage() {
         status: "draft",
       });
       setMsg(`Berita acara opname "${p.name}" dibuat (${rupiah(amount)}).`);
+      setAsk(null);
       load();
     } catch (e) {
       setMsg("Gagal membuat opname: " + (e instanceof Error ? e.message : String(e)));
@@ -136,17 +148,34 @@ export default function OpnamePage() {
   }
 
   async function setStatus(r: OpnameRow, status: string) {
+    if (status === "dibayar_sebagian") {
+      setPaidEdit({ id: r.id, value: String(r.paid_amount || "") });
+      return;
+    }
     const data: Record<string, unknown> = { status };
     if (status === "lunas") data.paid_amount = r.amount || 0;
-    if (status === "dibayar_sebagian") {
-      const v = prompt("Jumlah yang sudah dibayar (Rp):", String(r.paid_amount || 0));
-      if (v === null) return;
-      data.paid_amount = Number(v) || 0;
-    }
+    if (status === "draft" || status === "terbit") data.paid_amount = 0;
     setBusy(r.id);
     try {
       await pb().collection("opnames").update(r.id, data);
       load();
+    } catch (e) {
+      setMsg("Gagal mengubah status: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function savePaid(r: OpnameRow) {
+    if (!paidEdit) return;
+    const paid = Number(paidEdit.value) || 0;
+    setBusy(r.id);
+    try {
+      await pb().collection("opnames").update(r.id, { status: paid >= (r.amount || 0) ? "lunas" : "dibayar_sebagian", paid_amount: paid });
+      setPaidEdit(null);
+      load();
+    } catch (e) {
+      setMsg("Gagal menyimpan pembayaran: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy("");
     }
@@ -160,32 +189,33 @@ export default function OpnamePage() {
       await pb().collection("opnames").update(r.id, form);
       load();
     } catch (e) {
-      alert("Gagal unggah dokumen: " + (e instanceof Error ? e.message : String(e)));
+      setMsg("Gagal unggah dokumen: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy("");
     }
   }
 
-  async function editPrice(p: OpnamePkg) {
-    const v = prompt(`Harga satuan paket "${p.name}" (Rp per ${UNIT_LABEL[p.unit] || p.unit}):`, String(p.unit_price || ""));
-    if (v === null) return;
-    const price = Number(String(v).replace(/[^0-9.]/g, "")) || 0;
+  async function savePrice(p: OpnamePkg) {
+    if (!priceEdit) return;
+    const price = Number(String(priceEdit.value).replace(/[^0-9.]/g, "")) || 0;
     setBusy(p.package);
     try {
       await pb().collection("work_packages").update(p.package, { unit_price: price });
+      setPriceEdit(null);
       load();
     } catch (e) {
-      alert("Gagal menyimpan harga: " + (e instanceof Error ? e.message : String(e)));
+      setMsg("Gagal menyimpan harga: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy("");
     }
   }
 
+  const [delAsk, setDelAsk] = useState("");
   async function remove(r: OpnameRow) {
-    if (!confirm("Hapus berita acara opname ini?")) return;
     setBusy(r.id);
     try {
       await pb().collection("opnames").delete(r.id);
+      setDelAsk("");
       load();
     } finally {
       setBusy("");
@@ -217,6 +247,23 @@ export default function OpnamePage() {
       </label>
 
       {msg && <p className="text-sm text-subtle">{msg}</p>}
+
+      {ask && (
+        <div className="bg-[#FAFAF8] border border-dashed border-line2 rounded-xl p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold">Buat berita acara opname &quot;{ask.pkg.name}&quot;?</p>
+          <p className="text-sm">
+            {ask.qty} {UNIT_LABEL[ask.pkg.unit] || ask.pkg.unit} × {rupiah(ask.pkg.unit_price)} = <b>{rupiah(ask.amount)}</b>
+          </p>
+          <div className="flex gap-2">
+            <button onClick={doCreateOpname} disabled={busy !== ""} className="px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50">
+              {busy === ask.pkg.package ? "Menyimpan..." : "Ya, buat berita acara"}
+            </button>
+            <button onClick={() => setAsk(null)} className="px-2 py-2 text-xs text-subtle">
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hitungan otomatis per paket */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -268,9 +315,33 @@ export default function OpnamePage() {
                       {p.approved_qty} / {p.volume} {UNIT_LABEL[p.unit] || p.unit}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      <button onClick={() => editPrice(p)} className="underline decoration-dotted" title="Ubah harga satuan">
-                        {p.unit_price ? rupiah(p.unit_price) : <span className="text-warn">isi harga</span>}
-                      </button>
+                      {priceEdit?.id === p.package ? (
+                        <span className="inline-flex gap-1">
+                          <input
+                            autoFocus
+                            type="number"
+                            min={0}
+                            value={priceEdit.value}
+                            onChange={(e) => setPriceEdit({ id: p.package, value: e.target.value })}
+                            onKeyDown={(e) => e.key === "Enter" && savePrice(p)}
+                            className="w-28 border border-border rounded-md px-2 py-1 text-sm text-right bg-card"
+                          />
+                          <button onClick={() => savePrice(p)} className="text-xs font-semibold px-2 rounded-md bg-ink text-white">
+                            OK
+                          </button>
+                          <button onClick={() => setPriceEdit(null)} className="text-xs text-subtle px-1">
+                            ✕
+                          </button>
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setPriceEdit({ id: p.package, value: p.unit_price ? String(p.unit_price) : "" })}
+                          className="underline decoration-dotted"
+                          title="Ubah harga satuan"
+                        >
+                          {p.unit_price ? rupiah(p.unit_price) : <span className="text-warn">isi harga</span>}
+                        </button>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-right font-semibold">{rupiah(p.amount)}</td>
                     <td className="px-3 py-2 text-right text-xs text-muted">
@@ -311,7 +382,7 @@ export default function OpnamePage() {
         {rows === null && <p className="text-sm text-muted">Memuat...</p>}
         {rows?.length === 0 && <p className="text-sm text-muted">Belum ada berita acara untuk proyek ini. Klik "+ Opname" di tabel paket di atas.</p>}
         {rows?.map((r) => (
-          <div key={r.id} className="bg-card border border-border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <div key={r.id} className="bg-card border border-border rounded-xl p-3 flex flex-col sm:flex-row sm:items-center sm:flex-wrap gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold">{r.expand?.package?.name}</p>
               <p className="text-xs text-muted">
@@ -357,12 +428,43 @@ export default function OpnamePage() {
                   }}
                 />
               </label>
-              {r.status === "draft" && (
-                <button onClick={() => remove(r)} disabled={busy === r.id} className="text-xs text-warn underline">
-                  Hapus
-                </button>
-              )}
+              {r.status === "draft" &&
+                (delAsk === r.id ? (
+                  <span className="inline-flex items-center gap-2 text-xs">
+                    Hapus BA ini?
+                    <button onClick={() => remove(r)} disabled={busy === r.id} className="font-semibold px-2 py-1 rounded-md bg-warn text-white">
+                      Ya
+                    </button>
+                    <button onClick={() => setDelAsk("")} className="text-subtle">
+                      Tidak
+                    </button>
+                  </span>
+                ) : (
+                  <button onClick={() => setDelAsk(r.id)} disabled={busy === r.id} className="text-xs text-warn underline">
+                    Hapus
+                  </button>
+                ))}
             </div>
+            {paidEdit?.id === r.id && (
+              <div className="w-full flex items-center gap-2 text-xs">
+                <span>Jumlah sudah dibayar (Rp):</span>
+                <input
+                  autoFocus
+                  type="number"
+                  min={0}
+                  value={paidEdit.value}
+                  onChange={(e) => setPaidEdit({ id: r.id, value: e.target.value })}
+                  onKeyDown={(e) => e.key === "Enter" && savePaid(r)}
+                  className="w-36 border border-border rounded-md px-2 py-1 text-sm bg-card"
+                />
+                <button onClick={() => savePaid(r)} disabled={busy === r.id} className="font-semibold px-2 py-1 rounded-md bg-ink text-white">
+                  Simpan
+                </button>
+                <button onClick={() => setPaidEdit(null)} className="text-subtle">
+                  Batal
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>

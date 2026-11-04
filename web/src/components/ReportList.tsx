@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
 import { jobKey, getJob, isGenerating, startJob, cancelJob, finishJob, subscribe, registerController } from "@/lib/reportJobs";
+import { ConfirmButton } from "@/components/ConfirmButton";
 import type { RecordModel } from "pocketbase";
 
 type ReportRow = RecordModel & { file: string; label?: string; created: string; kind?: string };
@@ -102,12 +103,11 @@ export function ReportList({
   }
 
   async function onDelete(id: string) {
-    if (!confirm("Hapus laporan ini?")) return;
     try {
       await pb().collection("reports").delete(id);
       load();
     } catch {
-      alert("Gagal menghapus (perlu izin admin).");
+      setErr("Gagal menghapus laporan (perlu izin admin).");
     }
   }
 
@@ -166,9 +166,7 @@ export function ReportList({
                 ⬇ Unduh
               </a>
               {canDelete && (
-                <button onClick={() => onDelete(r.id)} className="text-xs text-warn font-semibold px-2 py-1">
-                  Hapus
-                </button>
+                <ConfirmButton label="Hapus" question="Hapus laporan?" onConfirm={() => onDelete(r.id)} className="text-xs text-warn font-semibold px-2 py-1" />
               )}
             </li>
           ))}
