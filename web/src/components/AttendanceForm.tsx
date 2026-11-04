@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { pb, currentUser } from "@/lib/pocketbase";
+import { DatePickerId, todayIso } from "@/components/DatePickerId";
 import type { RecordModel } from "pocketbase";
 
 export type Worker = RecordModel & {
@@ -11,12 +12,6 @@ export type Worker = RecordModel & {
   active?: boolean;
 };
 type AttendanceRow = RecordModel & { worker: string; date: string; present: boolean; overtime: number; note?: string };
-
-function todayIso() {
-  const d = new Date();
-  const z = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
-}
 
 /**
  * Absensi harian satu proyek: pilih tanggal, centang pekerja yang hadir,
@@ -134,16 +129,8 @@ export function AttendanceForm({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <label className="text-xs text-muted">Tanggal</label>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          className="border border-border rounded-lg px-2 py-1.5 text-sm bg-card"
-        />
-        <span className="text-xs text-muted ml-auto">{hadir} hadir</span>
-      </div>
+      <DatePickerId value={date} onChange={setDate} />
+      <p className="text-xs text-muted text-right -mt-1">{hadir} hadir</p>
 
       {workers === null && <p className="text-xs text-muted">Memuat pekerja...</p>}
       {workers?.length === 0 && <p className="text-xs text-muted">Belum ada pekerja. Tambahkan di bawah.</p>}

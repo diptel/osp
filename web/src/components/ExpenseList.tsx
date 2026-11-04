@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
+import { DatePickerId, todayIso, formatTanggalId } from "@/components/DatePickerId";
 import type { RecordModel } from "pocketbase";
 
 export const EXPENSE_CATEGORY: Record<string, string> = {
@@ -24,12 +25,6 @@ export type ExpenseRow = RecordModel & {
 
 export function rupiah(n: number) {
   return "Rp " + Math.round(n || 0).toLocaleString("id-ID");
-}
-
-function todayIso() {
-  const d = new Date();
-  const z = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`;
 }
 
 /**
@@ -105,8 +100,8 @@ export function ExpenseList({ projectId, canDelete = false }: { projectId: strin
     <div className="flex flex-col gap-3">
       <div className="bg-card border border-border rounded-xl p-3 flex flex-col gap-2">
         <p className="text-xs font-semibold">Tambah biaya</p>
-        <div className="grid grid-cols-2 gap-2">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="border border-border rounded-lg px-2 py-1.5 text-sm bg-card" />
+        <DatePickerId value={date} onChange={setDate} />
+        <div className="grid grid-cols-1 gap-2">
           <select value={category} onChange={(e) => setCategory(e.target.value)} className="border border-border rounded-lg px-2 py-1.5 text-sm bg-card">
             {Object.entries(EXPENSE_CATEGORY).map(([k, v]) => (
               <option key={k} value={k}>
@@ -158,7 +153,7 @@ export function ExpenseList({ projectId, canDelete = false }: { projectId: strin
                 {EXPENSE_CATEGORY[r.category] || r.category} · {rupiah(r.amount)}
               </span>
               <span className="block text-faint">
-                {r.date.slice(0, 10)}
+                {formatTanggalId(r.date.slice(0, 10))}
                 {r.note ? ` · ${r.note}` : ""}
                 {r.expand?.entered_by ? ` · ${r.expand.entered_by.name || r.expand.entered_by.email}` : ""}
               </span>
