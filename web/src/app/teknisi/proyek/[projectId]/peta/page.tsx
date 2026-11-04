@@ -63,6 +63,7 @@ export default function PetaLapanganPage() {
     homepass: false,
   });
   const layersRef = useRef<Record<string, LeafletNS.LayerGroup>>({});
+  const resizeObsRef = useRef<ResizeObserver | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +83,17 @@ export default function PetaLapanganPage() {
           if (visible[kind]) layersRef.current[kind].addTo(mapRef.current);
         }
         layersRef.current["route"] = Lx.layerGroup().addTo(mapRef.current);
+
+        // Kontainer baru dipasang lewat ref saat transisi route SPA; ukurannya
+        // kadang belum "settle" ketika Leaflet pertama kali mengukur, jadi
+        // tile request tidak pernah terkirim. Paksa Leaflet mengukur ulang.
+        const map0 = mapRef.current;
+        requestAnimationFrame(() => map0.invalidateSize());
+        setTimeout(() => map0.invalidateSize(), 150);
+        setTimeout(() => map0.invalidateSize(), 500);
+        const ro = new ResizeObserver(() => map0.invalidateSize());
+        ro.observe(mapDivRef.current);
+        resizeObsRef.current = ro;
       }
       const map = mapRef.current;
 
@@ -132,11 +144,17 @@ export default function PetaLapanganPage() {
       }
 
       if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
+      // fitBounds butuh ukuran yang benar juga; invalidate + fit ulang sekali lagi.
+      requestAnimationFrame(() => {
+        map.invalidateSize();
+        if (bounds.length) map.fitBounds(bounds, { padding: [24, 24] });
+      });
       setCounts(cnt);
       setLoading(false);
     })();
     return () => {
       cancelled = true;
+      resizeObsRef.current?.disconnect();
     };
   }, [projectId]);
 
