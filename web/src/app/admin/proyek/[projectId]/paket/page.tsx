@@ -20,6 +20,26 @@ type Pkg = RecordModel & {
   includes_material?: boolean;
 };
 type Fat = RecordModel & { code: string; line?: string; ports?: number; cores?: number };
+type TplItem = {
+  type: string;
+  name: string;
+  unit: string;
+  count_mode: string;
+  unit_price: number;
+  executor_type: string;
+  volume_mode: "fats" | "fat_cores" | "ports" | "fixed";
+  volume: number;
+};
+type Template = RecordModel & { name: string; note?: string; items: TplItem[] };
+
+// Tebak cara isi volume saat paket disimpan jadi template, dari cara hitungnya.
+function guessVolumeMode(p: Pkg): TplItem["volume_mode"] {
+  const m = p.count_mode || DEFAULT_MODE(p.type);
+  if (m === "fats_approved") return "fats";
+  if (m === "fat_cores_approved") return "fat_cores";
+  if (m === "ports_approved") return "ports";
+  return "fixed";
+}
 
 const TYPE_LABEL: Record<string, string> = {
   survei: "Survei",
@@ -74,6 +94,10 @@ export default function PaketPage() {
   const [editId, setEditId] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [tplSel, setTplSel] = useState("");
+  const [tplName, setTplName] = useState("");
+  const [showTpl, setShowTpl] = useState(false);
 
   const load = useCallback(() => {
     pb().collection("projects").getOne<Project>(pid).then(setProject).catch(() => void 0);
@@ -87,8 +111,99 @@ export default function PaketPage() {
       .getFullList<Fat>({ filter: `project = "${pid}" && kind = "fat"`, sort: "line,code" })
       .then(setFats)
       .catch(() => setFats([]));
+    pb()
+      .collection("package_templates")
+      .getFullList<Template>({ sort: "name" })
+      .then(setTemplates)
+      .catch(() => setTemplates([]));
   }, [pid]);
   useEffect(load, [load]);
+
+  // ----- template -----
+  async function saveTemplate() {
+    const name = tplName.trim();
+    if (!name || !pkgs || pkgs.length === 0) {
+      setMsg("Isi nama template, dan proyek harus punya paket.");
+      return;
+    }
+    const items: TplItem[] = pkgs.map((p) => ({
+      type: p.type,
+      name: p.name,
+      unit: p.unit,
+      count_mode: p.count_mode || DEFAULT_MODE(p.type),
+      unit_price: p.unit_price || 0,
+      executor_type: p.executor_type || "tim",
+      volume_mode: guessVolumeMode(p),
+      volume: p.volume || 0,
+    }));
+    setBusy("tpl");
+    try {
+      const existing = templates.find((t) => t.name === name);
+      if (existing) await pb().collection("package_templates").update(existing.id, { items });
+      else await pb().collection("package_templates").create({ name, items });
+      setMsg(`Template "${name}" tersimpan (${items.length} paket, termasuk harga).`);
+      setTplName("");
+      load();
+    } catch (e) {
+      setMsg("Gagal menyimpan template: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function applyTemplate() {
+    const t = templates.find((x) => x.id === tplSel);
+    if (!t) return;
+    const fatCount = fats.length;
+    const coreCount = fats.reduce((s, f) => s + (f.cores || Math.ceil((f.ports || 8) / 8)), 0);
+    const portCount = fats.reduce((s, f) => s + (f.ports || 8), 0);
+    setBusy("tpl");
+    let made = 0;
+    let skipped = 0;
+    try {
+      for (const it of t.items || []) {
+        if ((pkgs || []).some((p) => p.name === it.name)) {
+          skipped++;
+          continue;
+        }
+        const volume =
+          it.volume_mode === "fats" ? fatCount : it.volume_mode === "fat_cores" ? coreCount : it.volume_mode === "ports" ? portCount : it.volume || 0;
+        await pb().collection("work_packages").create({
+          project: pid,
+          type: it.type,
+          name: it.name,
+          unit: it.unit,
+          volume,
+          unit_price: it.unit_price || 0,
+          count_mode: it.count_mode,
+          manual_qty: 0,
+          executor_type: it.executor_type || "tim",
+          status: "rencana",
+        });
+        made++;
+      }
+      setMsg(`Template "${t.name}" diterapkan: ${made} paket dibuat${skipped ? `, ${skipped} dilewati (nama sudah ada)` : ""}. Volume dihitung dari ${fatCount} FAT / ${coreCount} core proyek ini.`);
+      load();
+    } catch (e) {
+      setMsg("Gagal menerapkan template: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function deleteTemplate() {
+    const t = templates.find((x) => x.id === tplSel);
+    if (!t) return;
+    setBusy("tpl");
+    try {
+      await pb().collection("package_templates").delete(t.id);
+      setTplSel("");
+      setMsg(`Template "${t.name}" dihapus.`);
+      load();
+    } finally {
+      setBusy("");
+    }
+  }
 
   function startEdit(p: Pkg) {
     setEditId(p.id);
@@ -176,6 +291,63 @@ export default function PaketPage() {
           Satuan & harga tiap paket pekerjaan, dan cara menghitung volume yang disetujui untuk opname. Nilai kontrak
           (volume × harga): <b>{rupiah(kontrak)}</b>.
         </p>
+      </div>
+
+      {/* Template */}
+      <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold">Template paket</p>
+          <button onClick={() => setShowTpl((v) => !v)} className="text-xs text-accent underline">
+            {showTpl ? "Sembunyikan" : "Tampilkan"}
+          </button>
+        </div>
+        {showTpl && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-muted">
+                <b>Terapkan</b> template ke proyek ini — volume dihitung otomatis dari jumlah FAT / core / port proyek ini,
+                harga ikut dari template. Paket yang namanya sudah ada dilewati.
+              </p>
+              <div className="flex gap-2">
+                <select value={tplSel} onChange={(e) => setTplSel(e.target.value)} className="border border-border rounded-lg px-3 py-2 text-sm bg-card flex-1">
+                  <option value="">— pilih template —</option>
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name} ({(t.items || []).length} paket)
+                    </option>
+                  ))}
+                </select>
+                <button onClick={applyTemplate} disabled={!tplSel || busy === "tpl"} className="px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-40">
+                  Terapkan
+                </button>
+                <button onClick={deleteTemplate} disabled={!tplSel || busy === "tpl"} className="px-2 py-2 text-xs text-warn underline disabled:opacity-40">
+                  Hapus
+                </button>
+              </div>
+              {tplSel && (
+                <ul className="text-[11px] text-faint list-disc pl-4">
+                  {(templates.find((t) => t.id === tplSel)?.items || []).map((it, i) => (
+                    <li key={i}>
+                      {it.name} — {UNIT_LABEL[it.unit] || it.unit} · {rupiah(it.unit_price)} ·{" "}
+                      {it.volume_mode === "fats" ? "volume = jumlah FAT" : it.volume_mode === "fat_cores" ? "volume = total core FAT" : it.volume_mode === "ports" ? "volume = total port" : `volume ${it.volume}`}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-muted">
+                <b>Simpan</b> paket proyek ini (beserta harga) sebagai template untuk proyek lain. Nama yang sama = menimpa.
+              </p>
+              <div className="flex gap-2">
+                <input value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Nama template, mis. MyRepublic FTTH standar" className="border border-border rounded-lg px-3 py-2 text-sm bg-card flex-1" />
+                <button onClick={saveTemplate} disabled={busy === "tpl" || !pkgs || pkgs.length === 0} className="px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-40">
+                  Simpan sebagai template
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Form paket */}
