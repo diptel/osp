@@ -40,9 +40,17 @@ export default function AntrianQcPage() {
 
   function load() {
     setLoadErr("");
+    // requestKey unik per panggilan — tanpa ini, SDK PocketBase otomatis
+    // membatalkan request sebelumnya ke koleksi yang sama (mis. opm_tests
+    // submitted dibatalkan oleh opm_tests approved yang dikirim sesudahnya).
     pb()
       .collection("opm_tests")
-      .getFullList<OpmRow>({ filter: 'status = "submitted"', expand: "fat,photo,project", sort: "created" })
+      .getFullList<OpmRow>({
+        filter: 'status = "submitted"',
+        expand: "fat,photo,project",
+        sort: "created",
+        requestKey: "qc-opm-submitted",
+      })
       .then(setOpm)
       .catch((e) => {
         setOpm([]);
@@ -50,28 +58,53 @@ export default function AntrianQcPage() {
       });
     pb()
       .collection("work_items")
-      .getFullList<WorkItemRow>({ filter: 'status = "submitted"', expand: "package,project", sort: "created" })
+      .getFullList<WorkItemRow>({
+        filter: 'status = "submitted"',
+        expand: "package,project",
+        sort: "created",
+        requestKey: "qc-item-submitted",
+      })
       .then(setItems)
       .catch(() => setItems([]));
     pb()
       .collection("relocations")
-      .getFullList<RelocRow>({ filter: 'status = "submitted"', expand: "asset,project", sort: "created" })
+      .getFullList<RelocRow>({
+        filter: 'status = "submitted"',
+        expand: "asset,project",
+        sort: "created",
+        requestKey: "qc-reloc-submitted",
+      })
       .then(setRelocs)
       .catch(() => setRelocs([]));
     // item yang SUDAH disetujui — untuk ditandai perlu revisi saat ATP
     pb()
       .collection("opm_tests")
-      .getFullList<OpmRow>({ filter: 'status = "approved"', expand: "fat,photo,project", sort: "-created" })
+      .getFullList<OpmRow>({
+        filter: 'status = "approved"',
+        expand: "fat,photo,project",
+        sort: "-created",
+        requestKey: "qc-opm-approved",
+      })
       .then(setOpmDone)
       .catch(() => setOpmDone([]));
     pb()
       .collection("work_items")
-      .getFullList<WorkItemRow>({ filter: 'status = "approved"', expand: "package,project", sort: "-created" })
+      .getFullList<WorkItemRow>({
+        filter: 'status = "approved"',
+        expand: "package,project",
+        sort: "-created",
+        requestKey: "qc-item-approved",
+      })
       .then(setItemsDone)
       .catch(() => setItemsDone([]));
     pb()
       .collection("relocations")
-      .getFullList<RelocRow>({ filter: 'status = "approved"', expand: "asset,project", sort: "-created" })
+      .getFullList<RelocRow>({
+        filter: 'status = "approved"',
+        expand: "asset,project",
+        sort: "-created",
+        requestKey: "qc-reloc-approved",
+      })
       .then(setRelocsDone)
       .catch(() => setRelocsDone([]));
   }

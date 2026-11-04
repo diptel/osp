@@ -16,6 +16,11 @@ export function pb(): PocketBase {
   }
   if (!client) {
     client = new PocketBase(PB_URL);
+    // Matikan auto-cancel bawaan SDK: tanpa ini, dua request ke koleksi yang
+    // sama dalam satu halaman (mis. opm_tests status=submitted DAN
+    // status=approved sekaligus) saling membatalkan satu sama lain —
+    // fiturnya untuk kasus pencarian cepat yang tidak dipakai di app ini.
+    client.autoCancellation(false);
   }
   return client;
 }
