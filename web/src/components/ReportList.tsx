@@ -18,6 +18,20 @@ const KIND_LABEL: Record<string, string> = {
   fat_finish: "Rekap Finish FAT",
 };
 
+// PocketBase membungkus error validasi/aturan dengan pesan generik
+// ("Failed to create record."), detail per-field-nya ada di
+// error.response.data — bongkar itu supaya pesan yang tampil ke admin
+// jelas penyebabnya, bukan cuma pesan generik yang membingungkan.
+function describeReportError(e: unknown): string {
+  const anyE = e as { response?: { message?: string; data?: Record<string, { message?: string }> }; message?: string };
+  const data = anyE?.response?.data;
+  if (data && Object.keys(data).length > 0) {
+    const parts = Object.entries(data).map(([field, info]) => `${field}: ${info?.message || "tidak valid"}`);
+    return parts.join("; ");
+  }
+  return anyE?.response?.message || (e instanceof Error ? e.message : String(e));
+}
+
 /**
  * Daftar laporan PDF yang TERSIMPAN per proyek — generate sekali, bisa
  * diunduh berkali-kali tanpa generate ulang. Kalau data berubah dan butuh
@@ -137,7 +151,7 @@ export function ReportList({
           finishJob(key);
           return;
         }
-        const msg = "Gagal membuat laporan: " + (e instanceof Error ? e.message : String(e));
+        const msg = "Gagal membuat laporan: " + describeReportError(e);
         setErr(msg);
         finishJob(key, msg);
       }
