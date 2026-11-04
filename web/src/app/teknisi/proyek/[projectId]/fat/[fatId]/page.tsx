@@ -155,6 +155,11 @@ export default function UjiOpmPage() {
   }
 
   const existing = port != null ? byPort.get(port) : undefined;
+  // Port yang sudah approved terkunci — tidak bisa diubah teknisi lagi,
+  // kecuali admin buka lagi lewat Antrian QC > Revisi ATP (status jadi "rejected").
+  const portLocked = !!existing && existing.status === "approved";
+  const approvedCount = tests.filter((t) => t.status === "approved").length;
+  const allVerified = total > 0 && approvedCount === total;
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -174,6 +179,12 @@ export default function UjiOpmPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 min-h-0">
+        {allVerified && (
+          <div className="p-2.5 bg-okbg border border-ok rounded-xl text-xs text-[#17402B]">
+            <p className="font-semibold">✓ FAT ini sudah terverifikasi semua ({approvedCount}/{total} port)</p>
+            <p>Terkunci — tidak bisa diubah lagi. Kalau perlu revisi, hubungi admin untuk dibuka lewat Antrian QC &gt; Revisi ATP.</p>
+          </div>
+        )}
         <section className="grid grid-cols-4 gap-1.5">
           {Array.from({ length: total }, (_, i) => i + 1).map((n) => {
             const t = byPort.get(n);
@@ -206,6 +217,17 @@ export default function UjiOpmPage() {
         <figure className="m-0 relative h-[170px] rounded-2xl overflow-hidden bg-[#23262D] flex items-center justify-center">
           {preview ? (
             <img src={preview} alt="" className="w-full h-full object-cover" />
+          ) : existing?.expand?.photo && portLocked ? (
+            <div className="w-full h-full relative block">
+              <img
+                src={fileUrl(existing.expand.photo, existing.expand.photo.file, "400x0")}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-1.5 right-1.5 bg-ok/90 text-white text-[10px] font-semibold px-2 py-1 rounded-md">
+                🔒 Terverifikasi · terkunci
+              </span>
+            </div>
           ) : existing?.expand?.photo ? (
             <label className="w-full h-full cursor-pointer relative block">
               <img
@@ -264,7 +286,8 @@ export default function UjiOpmPage() {
               value={dbm}
               onChange={(e) => setDbm(e.target.value)}
               placeholder="-19.74"
-              className="font-mono text-base font-semibold px-2.5 py-2.5 border border-line2 rounded-lg bg-card"
+              disabled={portLocked}
+              className="font-mono text-base font-semibold px-2.5 py-2.5 border border-line2 rounded-lg bg-card disabled:opacity-60 disabled:bg-[#F5F6F3]"
             />
           </label>
           <div className="flex flex-col gap-1 text-xs font-semibold text-subtle">
@@ -280,7 +303,10 @@ export default function UjiOpmPage() {
             <p>{existing.qc_note || "Admin menandai port ini perlu diuji/disambung ulang."}</p>
           </div>
         )}
-        {existing && existing.status !== "rejected" && (
+        {portLocked && (
+          <p className="text-xs text-ok font-semibold">🔒 Port ini sudah terverifikasi, terkunci dari perubahan.</p>
+        )}
+        {existing && !portLocked && existing.status !== "rejected" && (
           <p className="text-xs text-muted">
             Status sebelumnya: <strong>{existing.status}</strong>
           </p>
@@ -288,26 +314,34 @@ export default function UjiOpmPage() {
         {err && <p className="text-xs text-warn">{err}</p>}
       </div>
 
-      <div className="p-3 bg-card border-t border-border grid grid-cols-2 gap-2.5 shrink-0">
-        <button
-          onClick={() => {
-            setFile(null);
-            setPreview("");
-            if (inputRef.current) inputRef.current.value = "";
-            inputRef.current?.click();
-          }}
-          className="min-h-[50px] rounded-xl border border-line2 bg-card font-semibold text-sm"
-        >
-          Foto ulang
-        </button>
-        <button
-          onClick={onSave}
-          disabled={!file || !dbm || busy}
-          className="min-h-[50px] rounded-xl bg-ink text-white font-semibold text-sm disabled:opacity-50"
-        >
-          {busy ? "Menyimpan..." : port! < total ? `Simpan · lanjut Port ${port! + 1}` : "Simpan"}
-        </button>
-      </div>
+      {portLocked ? (
+        <div className="p-3 bg-card border-t border-border shrink-0">
+          <div className="min-h-[50px] rounded-xl bg-[#F5F6F3] text-subtle font-semibold text-sm flex items-center justify-center">
+            🔒 Terkunci — sudah terverifikasi
+          </div>
+        </div>
+      ) : (
+        <div className="p-3 bg-card border-t border-border grid grid-cols-2 gap-2.5 shrink-0">
+          <button
+            onClick={() => {
+              setFile(null);
+              setPreview("");
+              if (inputRef.current) inputRef.current.value = "";
+              inputRef.current?.click();
+            }}
+            className="min-h-[50px] rounded-xl border border-line2 bg-card font-semibold text-sm"
+          >
+            Foto ulang
+          </button>
+          <button
+            onClick={onSave}
+            disabled={!file || !dbm || busy}
+            className="min-h-[50px] rounded-xl bg-ink text-white font-semibold text-sm disabled:opacity-50"
+          >
+            {busy ? "Menyimpan..." : port! < total ? `Simpan · lanjut Port ${port! + 1}` : "Simpan"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
