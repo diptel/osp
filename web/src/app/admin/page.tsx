@@ -113,6 +113,9 @@ export default function AdminDashboard() {
               <Link href={`/admin/proyek/${p.id}/odp-finish`} className="text-xs text-accent underline">
                 Foto Finish FAT
               </Link>
+              <Link href={`/admin/proyek/${p.id}/laporan`} className="text-xs text-accent underline">
+                Laporan
+              </Link>
             </div>
           </div>
         ))}

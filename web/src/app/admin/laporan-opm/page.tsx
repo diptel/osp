@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { pb } from "@/lib/pocketbase";
-import { buildOpmReportPdf, fetchOpmReportData } from "@/lib/opmReportPdf";
 import type { RecordModel } from "pocketbase";
 
 type OpmRow = RecordModel & {
@@ -21,7 +20,6 @@ type ProjectRow = RecordModel & { cluster_name: string; cluster_id: string };
 export default function LaporanOpmPage() {
   const [rows, setRows] = useState<OpmRow[] | null>(null);
   const [allProjects, setAllProjects] = useState<ProjectRow[] | null>(null);
-  const [downloadingId, setDownloadingId] = useState("");
 
   useEffect(() => {
     pb()
@@ -47,19 +45,6 @@ export default function LaporanOpmPage() {
     return Array.from(m.values());
   }, [rows]);
 
-  async function downloadPdf(projectId: string, clusterName: string) {
-    setDownloadingId(projectId);
-    try {
-      const data = await fetchOpmReportData(projectId);
-      const doc = await buildOpmReportPdf({ project: data.project, fats: data.fats, clientLogoUrl: data.clientLogoUrl });
-      doc.save(`Laporan-OPM-${clusterName || projectId}.pdf`);
-    } catch (e) {
-      alert("Gagal membuat PDF: " + (e instanceof Error ? e.message : String(e)));
-    } finally {
-      setDownloadingId("");
-    }
-  }
-
   return (
     <div className="max-w-3xl flex flex-col gap-5">
       <div>
@@ -70,14 +55,13 @@ export default function LaporanOpmPage() {
       {projects.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {projects.map((p) => (
-            <button
+            <Link
               key={p.id}
-              disabled={downloadingId === p.id}
-              onClick={() => downloadPdf(p.id, p.cluster_name)}
-              className="px-3 py-2 rounded-lg text-sm font-semibold bg-ink text-white disabled:opacity-50"
+              href={`/admin/proyek/${p.id}/laporan`}
+              className="px-3 py-2 rounded-lg text-sm font-semibold bg-ink text-white"
             >
-              {downloadingId === p.id ? "Membuat PDF..." : `Unduh PDF · ${p.cluster_name} (${p.count} port)`}
-            </button>
+              Laporan · {p.cluster_name} ({p.count} port)
+            </Link>
           ))}
         </div>
       )}
