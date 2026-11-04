@@ -7,7 +7,20 @@ import type { RecordModel } from "pocketbase";
 
 type Asset = RecordModel & { kind: string; code: string; line: string; ports?: number; subtype?: string };
 type OpmTest = RecordModel & { fat: string; port_fat: number; status: string };
-type Project = RecordModel & { cluster_name: string; cluster_id: string };
+type Project = RecordModel & { cluster_name: string; cluster_id: string; status: string };
+
+const STAGE_LABEL: Record<string, string> = {
+  draft: "Draf",
+  survei: "Survei",
+  desain: "Desain",
+  berjalan: "Berjalan",
+  rfs: "RFS",
+  atp: "ATP",
+  revisi_atp: "Revisi ATP",
+  lunas: "Lunas",
+  selesai: "Selesai",
+  ditahan: "Ditahan",
+};
 
 export default function FatListPage() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -28,7 +41,7 @@ export default function FatListPage() {
       .catch(() => setFats([]));
     pb()
       .collection("opm_tests")
-      .getFullList<OpmTest>({ filter: `project = "${projectId}" && status != "rejected"` })
+      .getFullList<OpmTest>({ filter: `project = "${projectId}"` })
       .then(setTests)
       .catch(() => void 0);
   }, [projectId]);
@@ -37,10 +50,16 @@ export default function FatListPage() {
   const filled = useMemo(() => {
     const m = new Map<string, Set<number>>();
     for (const t of tests) {
+      if (t.status === "rejected") continue;
       if (!m.has(t.fat)) m.set(t.fat, new Set());
       m.get(t.fat)!.add(t.port_fat);
     }
     return m;
+  }, [tests]);
+  const needsRevision = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of tests) if (t.status === "rejected") s.add(t.fat);
+    return s;
   }, [tests]);
 
   const visible = (fats || []).filter((f) => (f.line || "—") === line);
@@ -52,10 +71,15 @@ export default function FatListPage() {
           <Link href="/teknisi" className="text-white">
             ←
           </Link>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="font-mono text-xs text-line2">{project?.cluster_id}</p>
             <h1 className="font-semibold leading-tight">{project?.cluster_name || "Memuat..."}</h1>
           </div>
+          {project?.status && (
+            <span className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[#2A2D35] text-white shrink-0">
+              {STAGE_LABEL[project.status] || project.status}
+            </span>
+          )}
         </div>
         {lines.length > 1 && (
           <div className="grid gap-1 p-1 bg-[#2A2D35] rounded-lg" style={{ gridTemplateColumns: `repeat(${lines.length}, minmax(0,1fr))` }}>
@@ -80,18 +104,27 @@ export default function FatListPage() {
         {visible.map((f) => {
           const n = filled.get(f.id)?.size || 0;
           const total = f.ports || 8;
-          const color = n >= total ? "bg-ok" : n > 0 ? "bg-warn" : "bg-faint";
+          const revisi = needsRevision.has(f.id);
+          const color = revisi ? "bg-warn" : n >= total ? "bg-ok" : n > 0 ? "bg-warn" : "bg-faint";
           return (
             <li key={f.id}>
               <Link
                 href={`/teknisi/proyek/${projectId}/fat/${f.id}`}
-                className="bg-card border border-border rounded-xl px-3 py-2.5 flex items-center gap-3"
+                className={`bg-card border rounded-xl px-3 py-2.5 flex items-center gap-3 ${
+                  revisi ? "border-warn" : "border-border"
+                }`}
               >
                 <span className={`w-3 h-3 rounded-full shrink-0 ${color}`} />
                 <span className="flex-1 min-w-0">
                   <span className="font-mono text-[15px] font-semibold block">{f.code}</span>
                   <span className="text-xs text-muted block">
-                    {n >= total ? `Lengkap ${total} port` : `Kurang port ${n + 1}–${total}`}
+                    {revisi ? (
+                      <span className="text-warn font-semibold">⚠ Perlu revisi (ATP)</span>
+                    ) : n >= total ? (
+                      `Lengkap ${total} port`
+                    ) : (
+                      `Kurang port ${n + 1}–${total}`
+                    )}
                   </span>
                 </span>
                 <span className="font-mono text-sm font-semibold">

@@ -19,6 +19,10 @@ const STATUS_LABEL: Record<string, string> = {
   survei: "Survei",
   desain: "Desain",
   berjalan: "Berjalan",
+  rfs: "RFS",
+  atp: "ATP",
+  revisi_atp: "Revisi ATP",
+  lunas: "Lunas",
   selesai: "Selesai",
   ditahan: "Ditahan",
 };
@@ -27,21 +31,39 @@ const STATUS_COLOR: Record<string, string> = {
   survei: "bg-[#E4ECF8] text-[#1E3F7A]",
   desain: "bg-[#E4ECF8] text-[#1E3F7A]",
   berjalan: "bg-okbg text-ok",
+  rfs: "bg-okbg text-ok",
+  atp: "bg-[#FCF1D6] text-[#8A5A00]",
+  revisi_atp: "bg-warnbg text-warn",
+  lunas: "bg-okbg text-ok",
   selesai: "bg-okbg text-ok",
   ditahan: "bg-warnbg text-warn",
 };
+const STATUS_ORDER = ["draft", "survei", "desain", "berjalan", "rfs", "atp", "revisi_atp", "lunas", "selesai", "ditahan"];
 
 export default function AdminDashboard() {
   const [projects, setProjects] = useState<ProjectRow[] | null>(null);
   const [err, setErr] = useState("");
+  const [busyId, setBusyId] = useState("");
 
-  useEffect(() => {
+  function load() {
     pb()
       .collection("projects")
       .getFullList<ProjectRow>({ expand: "client", sort: "-created" })
       .then(setProjects)
       .catch(() => setErr("Gagal memuat proyek."));
-  }, []);
+  }
+
+  useEffect(load, []);
+
+  async function changeStatus(id: string, status: string) {
+    setBusyId(id);
+    try {
+      await pb().collection("projects").update(id, { status });
+      load();
+    } finally {
+      setBusyId("");
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl">
@@ -67,9 +89,18 @@ export default function AdminDashboard() {
           <div key={p.id} className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
             <div className="flex items-start justify-between gap-2">
               <span className="font-mono text-xs text-muted">{p.cluster_id || p.code}</span>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${STATUS_COLOR[p.status] || ""}`}>
-                {STATUS_LABEL[p.status] || p.status}
-              </span>
+              <select
+                value={p.status}
+                disabled={busyId === p.id}
+                onChange={(e) => changeStatus(p.id, e.target.value)}
+                className={`text-xs font-semibold px-2 py-0.5 rounded-md border-0 ${STATUS_COLOR[p.status] || ""}`}
+              >
+                {STATUS_ORDER.map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABEL[s]}
+                  </option>
+                ))}
+              </select>
             </div>
             <h3 className="font-semibold leading-snug">{p.cluster_name || p.name}</h3>
             <p className="text-xs text-muted">

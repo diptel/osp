@@ -15,7 +15,7 @@ type Asset = RecordModel & {
   project: string;
 };
 type Project = RecordModel & { cluster_id: string; fdt_input_dbm?: number; gps_tolerance_m?: number };
-type OpmTest = RecordModel & { port_fat: number; opm_dbm: number; status: string };
+type OpmTest = RecordModel & { port_fat: number; opm_dbm: number; status: string; qc_note?: string };
 
 export default function UjiOpmPage() {
   const { projectId, fatId } = useParams<{ projectId: string; fatId: string }>();
@@ -41,11 +41,12 @@ export default function UjiOpmPage() {
     pb().collection("projects").getOne<Project>(projectId).then(setProject).catch(() => void 0);
     pb()
       .collection("opm_tests")
-      .getFullList<OpmTest>({ filter: `fat = "${fatId}" && status != "rejected"`, sort: "port_fat" })
+      .getFullList<OpmTest>({ filter: `fat = "${fatId}"`, sort: "port_fat" })
       .then((rows) => {
         setTests(rows);
         const total = fat?.ports || 8;
-        const filledSet = new Set(rows.map((r) => r.port_fat));
+        // port dianggap "selesai" kecuali statusnya rejected (perlu diuji ulang)
+        const filledSet = new Set(rows.filter((r) => r.status !== "rejected").map((r) => r.port_fat));
         let next = 1;
         while (filledSet.has(next) && next <= total) next++;
         setPort((p) => p ?? Math.min(next, total));
@@ -115,7 +116,7 @@ export default function UjiOpmPage() {
       photoForm.append("uploaded_by", u?.id || "");
       const photo = await pb().collection("photos").create(photoForm);
 
-      await pb().collection("opm_tests").create({
+      const payload = {
         project: projectId,
         fat: fatId,
         port_fat: port,
@@ -125,7 +126,13 @@ export default function UjiOpmPage() {
         tested_at: new Date().toISOString(),
         tested_by: u?.id,
         status: "submitted",
-      });
+      };
+      if (existing && existing.status === "rejected") {
+        // uji ulang port yang ditandai revisi — update record lama (sesuai updateRule)
+        await pb().collection("opm_tests").update(existing.id, payload);
+      } else {
+        await pb().collection("opm_tests").create(payload);
+      }
 
       setFile(null);
       setPreview("");
@@ -167,6 +174,8 @@ export default function UjiOpmPage() {
             const active = port === n;
             const cls = active
               ? "border-2 border-ink bg-white text-ink"
+              : t && t.status === "rejected"
+              ? "border border-warn bg-warnbg text-warn"
               : t
               ? "border border-ok bg-okbg text-[#17402B]"
               : "border border-dashed border-faint bg-white text-subtle";
@@ -240,10 +249,15 @@ export default function UjiOpmPage() {
             </div>
           </div>
         </div>
-        {existing && (
+        {existing && existing.status === "rejected" && (
+          <div className="p-2.5 bg-warnbg border border-warn rounded-xl text-xs text-warn flex flex-col gap-1">
+            <p className="font-semibold">⚠ Perlu revisi (ATP)</p>
+            <p>{existing.qc_note || "Admin menandai port ini perlu diuji/disambung ulang."}</p>
+          </div>
+        )}
+        {existing && existing.status !== "rejected" && (
           <p className="text-xs text-muted">
             Status sebelumnya: <strong>{existing.status}</strong>
-            {existing.status === "rejected" ? " — silakan uji ulang." : ""}
           </p>
         )}
         {err && <p className="text-xs text-warn">{err}</p>}
