@@ -6,7 +6,14 @@ export const metadata: Metadata = {
   title: "BRIIX OSP",
   description: "Aplikasi lapangan FTTH — BRIIX OSP",
   manifest: "/app/manifest.json",
-  icons: { icon: "/app/icon.svg", apple: "/app/icon.svg" },
+  icons: {
+    icon: [
+      { url: "/app/icon.svg", type: "image/svg+xml" },
+      { url: "/app/favicon.ico", sizes: "any" },
+      { url: "/app/icon-192.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: "/app/apple-touch-icon.png",
+  },
 };
 
 export const viewport: Viewport = {

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, isOfficeRole, type AppUser } from "@/lib/pocketbase";
+import { BriixMark } from "@/components/BriixLogo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -29,10 +30,10 @@ export default function LoginPage() {
     <div className="min-h-screen bg-ink flex flex-col">
       <div className="flex-1 flex flex-col justify-center px-6 py-10 max-w-sm mx-auto w-full gap-8">
         <div className="flex flex-col gap-2 text-white">
-          <div className="w-11 h-11 rounded-xl bg-brand flex items-center justify-center font-mono font-bold text-lg">
-            B
-          </div>
-          <h1 className="text-2xl font-semibold mt-2">BRIIX OSP</h1>
+          <BriixMark size={44} tone="dark" />
+          <h1 className="text-2xl font-semibold mt-2">
+            BRIIX <span className="text-accent">OSP</span>
+          </h1>
           <p className="text-line2 text-sm">Aplikasi lapangan proyek FTTH</p>
         </div>
 

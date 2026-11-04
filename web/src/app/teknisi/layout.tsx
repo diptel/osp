@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AuthGate } from "@/components/AuthGate";
 import { logout } from "@/lib/pocketbase";
+import { BriixMark, BriixWordmark } from "@/components/BriixLogo";
 
 export default function TeknisiLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -26,7 +27,10 @@ export default function TeknisiLayout({ children }: { children: React.ReactNode 
         <div className="min-h-screen flex flex-col bg-surface max-w-[480px] mx-auto">
           {!pid && (
             <header className="flex items-center justify-between px-4 py-3 bg-ink text-white">
-              <span className="font-semibold">BRIIX OSP</span>
+              <span className="flex items-center gap-2">
+                <BriixMark size={22} tone="dark" />
+                <BriixWordmark compact />
+              </span>
               <button
                 onClick={() => {
                   logout();

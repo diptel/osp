@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AuthGate } from "@/components/AuthGate";
 import { currentUser, logout } from "@/lib/pocketbase";
+import { BriixMark, BriixWordmark } from "@/components/BriixLogo";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
@@ -23,10 +24,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="min-h-screen flex bg-surface">
           <aside className="hidden md:flex w-56 flex-col bg-ink text-white shrink-0">
             <div className="px-5 py-5 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center font-mono font-bold text-sm">
-                B
-              </div>
-              <span className="font-semibold">BRIIX OSP</span>
+              <BriixMark size={28} tone="dark" />
+              <BriixWordmark />
             </div>
             <nav className="flex flex-col gap-0.5 px-3 flex-1">
               {NAV.map((n) => {
@@ -56,7 +55,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </aside>
           <div className="flex-1 flex flex-col min-w-0">
             <header className="md:hidden flex items-center justify-between px-4 py-3 bg-ink text-white">
-              <span className="font-semibold">BRIIX OSP</span>
+              <span className="flex items-center gap-2">
+                <BriixMark size={22} tone="dark" />
+                <BriixWordmark compact />
+              </span>
               <button
                 onClick={() => {
                   logout();
