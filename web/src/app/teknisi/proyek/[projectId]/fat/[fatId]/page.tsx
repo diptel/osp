@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { pb, currentUser } from "@/lib/pocketbase";
+import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
 import { dhash, distanceM, getPosition, bestPos } from "@/lib/dhash";
 import type { RecordModel } from "pocketbase";
 
@@ -15,7 +15,13 @@ type Asset = RecordModel & {
   project: string;
 };
 type Project = RecordModel & { cluster_id: string; fdt_input_dbm?: number; gps_tolerance_m?: number };
-type OpmTest = RecordModel & { port_fat: number; opm_dbm: number; status: string; qc_note?: string };
+type OpmTest = RecordModel & {
+  port_fat: number;
+  opm_dbm: number;
+  status: string;
+  qc_note?: string;
+  expand?: { photo?: RecordModel & { file: string } };
+};
 
 export default function UjiOpmPage() {
   const { projectId, fatId } = useParams<{ projectId: string; fatId: string }>();
@@ -41,7 +47,7 @@ export default function UjiOpmPage() {
     pb().collection("projects").getOne<Project>(projectId).then(setProject).catch(() => void 0);
     pb()
       .collection("opm_tests")
-      .getFullList<OpmTest>({ filter: `fat = "${fatId}"`, sort: "port_fat" })
+      .getFullList<OpmTest>({ filter: `fat = "${fatId}"`, sort: "port_fat", expand: "photo" })
       .then((rows) => {
         setTests(rows);
         const total = fat?.ports || 8;
@@ -200,6 +206,25 @@ export default function UjiOpmPage() {
         <figure className="m-0 relative h-[170px] rounded-2xl overflow-hidden bg-[#23262D] flex items-center justify-center">
           {preview ? (
             <img src={preview} alt="" className="w-full h-full object-cover" />
+          ) : existing?.expand?.photo ? (
+            <label className="w-full h-full cursor-pointer relative block">
+              <img
+                src={fileUrl(existing.expand.photo, existing.expand.photo.file, "400x0")}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-1.5 right-1.5 bg-ink/80 text-white text-[10px] font-semibold px-2 py-1 rounded-md">
+                ✓ Foto ada · ketuk untuk ganti
+              </span>
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={onPick}
+                className="hidden"
+              />
+            </label>
           ) : (
             <label className="w-[120px] h-[120px] border-2 border-dashed border-faint rounded-xl flex items-center justify-center text-center text-line2 text-xs p-2 cursor-pointer">
               Ambil foto · Port {port}
