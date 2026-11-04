@@ -19,21 +19,43 @@ export function AuthGate({
   const [role, setRole] = useState<Role | null>(null);
 
   useEffect(() => {
-    const u = currentUser();
-    if (!u || !pb().authStore.isValid) {
-      router.replace("/login");
-      return;
+    let cancelled = false;
+    async function run() {
+      const u = currentUser();
+      if (!u || !pb().authStore.isValid) {
+        router.replace("/login");
+        return;
+      }
+      // Sesi yang sudah login menyimpan data akun (termasuk daftar `projects`)
+      // di HP sejak login pertama kali. Tarik ulang dari server tiap buka app,
+      // supaya proyek yang baru di-assign admin langsung muncul tanpa perlu
+      // logout/login manual.
+      try {
+        await pb().collection("users").authRefresh();
+      } catch {
+        // offline atau token kedaluwarsa — lanjut pakai data cache yang ada
+      }
+      if (cancelled) return;
+      const fresh = currentUser();
+      if (!fresh || !pb().authStore.isValid) {
+        router.replace("/login");
+        return;
+      }
+      if (require === "office" && !isOfficeRole(fresh.role)) {
+        router.replace("/teknisi");
+        return;
+      }
+      if (require === "field" && isOfficeRole(fresh.role)) {
+        router.replace("/admin");
+        return;
+      }
+      setRole(fresh.role);
+      setReady(true);
     }
-    if (require === "office" && !isOfficeRole(u.role)) {
-      router.replace("/teknisi");
-      return;
-    }
-    if (require === "field" && isOfficeRole(u.role)) {
-      router.replace("/admin");
-      return;
-    }
-    setRole(u.role);
-    setReady(true);
+    run();
+    return () => {
+      cancelled = true;
+    };
   }, [router, require]);
 
   if (!ready || !role) {
