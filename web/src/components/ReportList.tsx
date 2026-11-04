@@ -155,6 +155,16 @@ export function ReportList({
                 </a>
                 <span className="block text-faint">{new Date(r.created).toLocaleString("id-ID")}</span>
               </span>
+              {/* ?download=1 → PocketBase kirim Content-Disposition: attachment,
+                  jadi browser langsung mengunduh, bukan membuka PDF di tab. */}
+              <a
+                href={pb().files.getURL(r, r.file, { download: true })}
+                download={r.file}
+                className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink text-white shrink-0"
+                title="Unduh PDF"
+              >
+                ⬇ Unduh
+              </a>
               {canDelete && (
                 <button onClick={() => onDelete(r.id)} className="text-xs text-warn font-semibold px-2 py-1">
                   Hapus
