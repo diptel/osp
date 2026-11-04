@@ -32,6 +32,9 @@ export default function ArsipPage() {
   const [rows, setRows] = useState<ProjectRow[] | null>(null);
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
+  // Konfirmasi ketik kode di dalam halaman (bukan prompt() browser yang bisa
+  // dibisukan Chrome setelah beberapa dialog).
+  const [ask, setAsk] = useState<{ id: string; typed: string } | null>(null);
 
   function load() {
     pb()
@@ -44,27 +47,27 @@ export default function ArsipPage() {
 
   async function restore(p: ProjectRow) {
     setBusy(p.id);
+    setMsg("");
     try {
       await pb().collection("projects").update(p.id, { archived: false, archived_at: null });
+      setMsg(`Proyek ${p.cluster_id || p.code || p.name} dipulihkan ke dashboard.`);
       load();
+    } catch (e) {
+      setMsg("Gagal memulihkan: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy("");
     }
   }
 
+  const codeOf = (p: ProjectRow) => p.cluster_id || p.code || p.name;
+
   async function removeOne(p: ProjectRow) {
-    const label = p.cluster_id || p.code || p.name;
-    const typed = prompt(
-      `HAPUS PERMANEN proyek "${p.cluster_name || p.name}" beserta semua foto, hasil uji, aset, dan laporannya?\n\nKetik kode proyek berikut untuk konfirmasi: ${label}`
-    );
-    if (typed !== label) {
-      if (typed !== null) alert("Kode tidak cocok, dibatalkan.");
-      return;
-    }
     setBusy(p.id);
+    setMsg("");
     try {
       await pb().collection("projects").delete(p.id);
-      setMsg(`Proyek ${label} dihapus permanen.`);
+      setMsg(`Proyek ${codeOf(p)} dihapus permanen.`);
+      setAsk(null);
       load();
     } catch (e) {
       setMsg("Gagal menghapus: " + (e instanceof Error ? e.message : String(e)));
@@ -75,14 +78,8 @@ export default function ArsipPage() {
 
   async function removeAll() {
     if (!rows || rows.length === 0) return;
-    const typed = prompt(
-      `KOSONGKAN ARSIP: ${rows.length} proyek akan DIHAPUS PERMANEN beserta semua foto, hasil uji, aset, dan laporannya. Tidak bisa dibatalkan.\n\nKetik HAPUS SEMUA untuk melanjutkan.`
-    );
-    if (typed !== "HAPUS SEMUA") {
-      if (typed !== null) alert("Teks tidak cocok, dibatalkan.");
-      return;
-    }
     setBusy("all");
+    setMsg("");
     let ok = 0;
     const failed: string[] = [];
     for (const p of rows) {
@@ -90,10 +87,11 @@ export default function ArsipPage() {
         await pb().collection("projects").delete(p.id);
         ok++;
       } catch {
-        failed.push(p.cluster_id || p.code || p.name);
+        failed.push(codeOf(p));
       }
     }
-    setMsg(`${ok} proyek dihapus.${failed.length ? " Gagal: " + failed.join(", ") : ""}`);
+    setMsg(`${ok} proyek dihapus permanen.${failed.length ? " Gagal: " + failed.join(", ") : ""}`);
+    setAsk(null);
     setBusy("");
     load();
   }
@@ -110,7 +108,7 @@ export default function ArsipPage() {
         </div>
         {rows && rows.length > 0 && (
           <button
-            onClick={removeAll}
+            onClick={() => setAsk({ id: "all", typed: "" })}
             disabled={busy !== ""}
             className="text-xs font-semibold px-3 py-2 rounded-lg bg-warnbg text-warn border border-warn/30 shrink-0 disabled:opacity-50"
           >
@@ -118,6 +116,35 @@ export default function ArsipPage() {
           </button>
         )}
       </div>
+
+      {ask?.id === "all" && rows && (
+        <div className="bg-warnbg border border-warn/30 rounded-xl p-4 flex flex-col gap-2">
+          <p className="text-sm font-semibold text-warn">
+            KOSONGKAN ARSIP: {rows.length} proyek akan DIHAPUS PERMANEN beserta semua foto, hasil uji, aset, laporan,
+            absensi, dan biayanya. Tidak bisa dibatalkan.
+          </p>
+          <p className="text-xs text-subtle">Ketik <b>HAPUS SEMUA</b> untuk melanjutkan.</p>
+          <div className="flex gap-2 flex-wrap">
+            <input
+              autoFocus
+              value={ask.typed}
+              onChange={(e) => setAsk({ ...ask, typed: e.target.value })}
+              className="border border-border rounded-lg px-3 py-2 text-sm bg-card"
+              placeholder="HAPUS SEMUA"
+            />
+            <button
+              onClick={removeAll}
+              disabled={busy !== "" || ask.typed !== "HAPUS SEMUA"}
+              className="text-xs font-semibold px-3 py-2 rounded-lg bg-warn text-white disabled:opacity-40"
+            >
+              {busy === "all" ? "Menghapus..." : "Hapus semua permanen"}
+            </button>
+            <button onClick={() => setAsk(null)} className="text-xs text-subtle px-2 py-2">
+              Batal
+            </button>
+          </div>
+        </div>
+      )}
 
       {msg && <p className="text-sm text-subtle">{msg}</p>}
       {rows === null && <p className="text-sm text-muted">Memuat...</p>}
@@ -147,13 +174,40 @@ export default function ArsipPage() {
                 Pulihkan
               </button>
               <button
-                onClick={() => removeOne(p)}
+                onClick={() => setAsk({ id: p.id, typed: "" })}
                 disabled={busy !== ""}
                 className="text-xs text-warn underline ml-auto disabled:opacity-50"
               >
                 Hapus permanen
               </button>
             </div>
+            {ask?.id === p.id && (
+              <div className="bg-warnbg border border-warn/30 rounded-lg p-2.5 flex flex-col gap-2">
+                <p className="text-xs font-semibold text-warn">
+                  Hapus permanen beserta semua foto, hasil uji, aset, laporan, absensi, biaya? Ketik kode proyek:{" "}
+                  <b>{codeOf(p)}</b>
+                </p>
+                <input
+                  autoFocus
+                  value={ask.typed}
+                  onChange={(e) => setAsk({ ...ask, typed: e.target.value })}
+                  className="border border-border rounded-lg px-2 py-1.5 text-sm bg-card"
+                  placeholder={codeOf(p)}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => removeOne(p)}
+                    disabled={busy !== "" || ask.typed.trim() !== codeOf(p)}
+                    className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-warn text-white disabled:opacity-40"
+                  >
+                    {busy === p.id ? "Menghapus..." : "Hapus permanen"}
+                  </button>
+                  <button onClick={() => setAsk(null)} className="text-xs text-subtle px-2 py-1.5">
+                    Batal
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

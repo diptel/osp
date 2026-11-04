@@ -48,6 +48,10 @@ export default function AdminDashboard() {
   const [projects, setProjects] = useState<ProjectRow[] | null>(null);
   const [err, setErr] = useState("");
   const [busyId, setBusyId] = useState("");
+  // Konfirmasi di dalam kartu (bukan confirm()/prompt() browser — Chrome bisa
+  // membisukan dialog bawaan setelah beberapa kali, jadi klik seolah tidak
+  // merespons sama sekali).
+  const [ask, setAsk] = useState<{ id: string; kind: "arsip" | "batal"; reason: string } | null>(null);
 
   function load() {
     pb()
@@ -60,27 +64,37 @@ export default function AdminDashboard() {
   useEffect(load, []);
 
   async function changeStatus(id: string, status: string) {
-    const data: Record<string, unknown> = { status };
     if (status === "dibatalkan") {
-      const reason = prompt("Alasan pembatalan proyek (wajib):");
-      if (!reason || !reason.trim()) return;
-      data.cancel_reason = reason.trim();
+      setAsk({ id, kind: "batal", reason: "" });
+      return;
     }
     setBusyId(id);
+    setErr("");
     try {
-      await pb().collection("projects").update(id, data);
+      await pb().collection("projects").update(id, { status });
       load();
+    } catch (e) {
+      setErr("Gagal mengubah status: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusyId("");
     }
   }
 
-  async function archive(p: ProjectRow) {
-    if (!confirm(`Arsipkan proyek ${p.cluster_name || p.name}? Proyek hilang dari daftar (bisa dipulihkan di halaman Arsip).`)) return;
-    setBusyId(p.id);
+  async function confirmAsk() {
+    if (!ask) return;
+    if (ask.kind === "batal" && !ask.reason.trim()) return;
+    setBusyId(ask.id);
+    setErr("");
     try {
-      await pb().collection("projects").update(p.id, { archived: true, archived_at: new Date().toISOString() });
+      if (ask.kind === "batal") {
+        await pb().collection("projects").update(ask.id, { status: "dibatalkan", cancel_reason: ask.reason.trim() });
+      } else {
+        await pb().collection("projects").update(ask.id, { archived: true, archived_at: new Date().toISOString() });
+      }
+      setAsk(null);
       load();
+    } catch (e) {
+      setErr(`Gagal ${ask.kind === "batal" ? "membatalkan" : "mengarsipkan"}: ` + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusyId("");
     }
@@ -130,6 +144,37 @@ export default function AdminDashboard() {
             {p.status === "dibatalkan" && p.cancel_reason && (
               <p className="text-xs text-warn">Dibatalkan: {p.cancel_reason}</p>
             )}
+            {ask?.id === p.id && (
+              <div className="bg-[#FAFAF8] border border-dashed border-line2 rounded-lg p-2.5 flex flex-col gap-2">
+                {ask.kind === "batal" ? (
+                  <>
+                    <p className="text-xs font-semibold">Batalkan proyek ini? Isi alasannya:</p>
+                    <input
+                      autoFocus
+                      value={ask.reason}
+                      onChange={(e) => setAsk({ ...ask, reason: e.target.value })}
+                      onKeyDown={(e) => e.key === "Enter" && confirmAsk()}
+                      placeholder="Alasan pembatalan (wajib)"
+                      className="border border-border rounded-lg px-2 py-1.5 text-sm bg-card"
+                    />
+                  </>
+                ) : (
+                  <p className="text-xs font-semibold">Arsipkan proyek ini? Proyek hilang dari daftar (bisa dipulihkan di halaman Arsip).</p>
+                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirmAsk}
+                    disabled={busyId === p.id || (ask.kind === "batal" && !ask.reason.trim())}
+                    className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink text-white disabled:opacity-50"
+                  >
+                    {busyId === p.id ? "Menyimpan..." : ask.kind === "batal" ? "Ya, batalkan proyek" : "Ya, arsipkan"}
+                  </button>
+                  <button onClick={() => setAsk(null)} className="text-xs text-subtle px-2 py-1.5">
+                    Tidak
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap gap-3 mt-1">
               <Link href={`/admin/proyek/${p.id}/kmz`} className="text-xs text-accent underline">
                 Impor KMZ
@@ -145,7 +190,7 @@ export default function AdminDashboard() {
               </Link>
               {(p.status === "selesai" || p.status === "dibatalkan") && (
                 <button
-                  onClick={() => archive(p)}
+                  onClick={() => setAsk({ id: p.id, kind: "arsip", reason: "" })}
                   disabled={busyId === p.id}
                   className="text-xs text-subtle underline ml-auto disabled:opacity-50"
                 >
