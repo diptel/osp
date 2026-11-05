@@ -1,55 +1,102 @@
 {
-  "_catatan": "Data perusahaan untuk PDF company profile BRIIX OSP. Isi semua yang masih [ISI ...]. Jalankan: python3 tools/build_company_profile.py",
+  "_catatan": "Data perusahaan untuk PDF company profile BRIIX OSP. Jalankan: python3 tools/build_company_profile.py",
   "brand": "BRIIX OSP",
-  "tagline": "Kontraktor Jaringan Fiber Optik Luar Gedung (Outside Plant) untuk Penyedia Internet",
+  "tagline": "Jasa pembangunan jaringan fiber optik luar gedung (Outside Plant / FTTH) untuk penyedia internet dan mitra ICT",
   "pusat_url": "https://briix.co.id",
   "web_url": "https://osp.briix.co.id",
-  "tahun_mulai": "[ISI tahun berdiri]",
-
+  "tahun_mulai": "2024",
+  "foto_sampul": "tools/company_profile_kantor.jpg",
   "legal": {
-    "nama_badan_usaha": "[ISI nama PT/CV lengkap]",
-    "bentuk": "[ISI PT / CV]",
-    "akta_pendirian": "[ISI No. akta, tanggal, notaris]",
-    "sk_kemenkumham": "[ISI No. SK pengesahan]",
-    "nib": "[ISI NIB]",
-    "npwp": "[ISI NPWP]",
-    "pkp": "[ISI PKP / Non-PKP]",
-    "kbli": ["[ISI KBLI, mis. 42217 Konstruksi Sentral Telekomunikasi]", "[ISI KBLI lain]"],
-    "sertifikat_lain": ["[ISI mis. SBU / SKK / ISO jika ada, atau hapus baris ini]"],
-    "alamat": "[ISI alamat kantor lengkap]",
+    "nama_badan_usaha": "PT BRIIX Technologi Indonesia",
+    "singkatan": "PT BRIIXTECH",
+    "bentuk": "Perseroan Terbatas (Swasta Nasional), berkedudukan di Kabupaten Lamongan",
+    "akta_pendirian": "Akta No. 165 tanggal 29 Juli 2024, Notaris Hartini, S.H., M.Kn. (Kota Cirebon)",
+    "sk_kemenkumham": "AHU-0056736.AH.01.01.TAHUN 2024 tanggal 30 Juli 2024 (Daftar Perseroan AHU-0155731.AH.01.11.TAHUN 2024)",
+    "nib": "3007240064216",
+    "npwp": "21.341.319.8-645.000 (NPWP16: 0213 4131 9864 5000) — KPP Pratama Lamongan",
+    "pkp": "Non-PKP",
+    "modal": "Modal dasar Rp 50.000.000; ditempatkan & disetor Rp 12.500.000",
+    "kbli": [
+      "43212 Instalasi Telekomunikasi",
+      "61100 Aktivitas Telekomunikasi Dengan Kabel",
+      "61921 Internet Service Provider",
+      "61994 Jasa Jual Kembali Jasa Telekomunikasi",
+      "61999 Aktivitas Telekomunikasi Lainnya",
+      "46523 Perdagangan Besar Peralatan Telekomunikasi",
+      "dan KBLI lain sesuai akta (46100, 63112, 63122, 58200, 46512)"
+    ],
+    "izin_lain": [
+      "Persetujuan PKPLH (UKL-UPL) KLHK No. 30072401135240003 untuk kegiatan usaha di Sedayulawas, Lamongan"
+    ],
+    "alamat": "Jl. Mawar No. 05, RT 001 RW 002, Desa Sedayulawas, Kec. Brondong, Kab. Lamongan, Jawa Timur 62263",
     "telepon": "[ISI nomor telepon/WhatsApp]",
     "email": "[ISI email]",
-    "direktur": "[ISI nama direktur]",
-    "bank": "[ISI nama bank, no. rekening, atas nama]"
+    "direktur": "Shofiyudin (Direktur); Lathifatul Mahmudah (Komisaris)",
+    "bank": "Bank Mandiri KCP Lamongan Brondong, No. Rek. 178-00-1066097-1 a.n. PT BRIIX Technologi Indonesia"
   },
-
   "layanan": [
-    ["Survei & desain KMZ", "Survei jalur, penempatan FDT/FAT & tiang, perhitungan homepass, desain KMZ siap bangun atau penyesuaian desain klien."],
-    ["Tarik kabel distribusi & feeder", "Penarikan kabel udara per line dengan sling/messenger, slack dan aksesoris; dicatat per meter terpasang."],
-    ["Tanam tiang", "Pengadaan dan pemasangan tiang sesuai titik desain, termasuk penandaan kode tiang."],
-    ["Jointing FDT & FAT", "Penyambungan core feeder ke splitter FDT, FDT ke tiap FAT, dan terminasi FAT; dihitung per core."],
-    ["Uji redaman OPM", "Pengukuran daya optik setiap port FAT dengan bukti foto layar alat ukur, dibandingkan terhadap input FDT."],
-    ["Laporan & serah terima (ATP)", "Laporan uji per FAT dalam format klien, rekap foto FAT selesai, as-built, tindak lanjut revisi ATP sampai lunas."]
+    [
+      "Survei & desain KMZ",
+      "Survei jalur, penempatan FDT/FAT & tiang, perhitungan homepass, desain KMZ siap bangun atau penyesuaian desain dari klien."
+    ],
+    [
+      "Tarik kabel distribusi & feeder",
+      "Penarikan kabel udara per line dengan sling/messenger, slack dan aksesoris; dicatat per meter terpasang."
+    ],
+    [
+      "Tanam tiang",
+      "Pengadaan dan pemasangan tiang sesuai titik desain, termasuk penandaan kode tiang."
+    ],
+    [
+      "Jointing FDT & FAT",
+      "Penyambungan core feeder ke splitter FDT, FDT ke tiap FAT, dan terminasi FAT; dihitung per core."
+    ],
+    [
+      "Uji redaman OPM",
+      "Pengukuran daya optik setiap port FAT dengan bukti foto layar alat ukur, dibandingkan terhadap input FDT."
+    ],
+    [
+      "Laporan & serah terima (ATP)",
+      "Laporan uji per FAT dalam format klien, rekap foto FAT selesai, as-built, tindak lanjut revisi ATP sampai lunas."
+    ]
   ],
-
   "pengalaman": [
-    ["MyRepublic", "Cluster Temu RW 1,2,3 Bojonegoro (TMU123.035)", "1 FDT, 24 FAT, 192 port, 346 homepass — jointing FDT/FAT, uji OPM 192 port, laporan ATP", "2026"],
-    ["MyRepublic", "Cluster Temu RW 4,5,6 Bojonegoro (TMU456)", "Jointing & uji OPM", "2026"]
+    [
+      "MyRepublic (via mitra ICT wilayah)",
+      "Cluster Temu RW 1,2,3 Bojonegoro (TMU123.035)",
+      "1 FDT, 24 FAT, 192 port, 346 homepass — jointing FDT/FAT, uji OPM 192 port, laporan ATP",
+      "2026"
+    ],
+    [
+      "MyRepublic (via mitra ICT wilayah)",
+      "Cluster Temu RW 4,5,6 Bojonegoro (TMU456)",
+      "Jointing & uji OPM",
+      "2026"
+    ]
   ],
-
+  "latar_belakang": "PT BRIIX Technologi Indonesia berdiri 2024 sebagai penyelenggara jaringan internet (ISP) di Lamongan dan membangun serta merawat jaringan fiber optik sendiri. Pengalaman membangun dan mengoperasikan jaringan sendiri itulah yang kami bawa ke lini BRIIX OSP: mengerjakan jaringan FTTH untuk penyedia internet dan mitra ICT lain. BRIIX OSP adalah lini yang baru kami mulai — tim lapangan berpengalaman di jointing dan pengukuran OPM dari pekerjaan jaringan sendiri, dan kami memperkuat mutu lewat sistem kerja digital, bukan lewat klaim.",
   "tim": [
-    ["[ISI jumlah] teknisi splicer", "bersertifikat / berpengalaman jointing & OPM"],
-    ["[ISI jumlah] tim tarik kabel & tiang", "borongan per line"],
-    ["Surveyor, drafter KMZ, QC", "kantor & lapangan"]
+    [
+      "Teknisi splicer & OPM",
+      "berpengalaman jointing dan pengukuran dari pembangunan jaringan sendiri; pelatihan dan sertifikasi sedang diupayakan"
+    ],
+    [
+      "Tim tarik kabel & tiang",
+      "borongan per line, dikoordinasi mandor"
+    ],
+    [
+      "Surveyor, drafter KMZ, QC",
+      "kantor & lapangan"
+    ]
   ],
-
   "peralatan": [
     "Fusion splicer & cleaver",
-    "OPM (optical power meter) & OLS",
-    "OTDR (jika ada — hapus kalau tidak)",
-    "Peralatan tarik kabel udara (tensioner, sling, aksesoris)",
-    "APD lengkap: helm, sabuk pengaman, sarung tangan, rompi"
+    "Optical power meter (OPM) & optical light source",
+    "Peralatan tarik kabel udara (sling, aksesoris, tangga)",
+    "APD: helm, sabuk pengaman, sarung tangan, rompi"
   ],
-
-  "referensi_klien": ["MyRepublic (melalui mitra ICT wilayah)", "Fistmedia"]
+  "referensi_klien": [
+    "MyRepublic (melalui mitra ICT wilayah)",
+    "Fistmedia"
+  ]
 }

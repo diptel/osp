@@ -44,7 +44,7 @@ def val(s):
 def kv_table(rows, col1=48*mm):
     t = Table([[Paragraph(esc(k), CELLB), val(v)] for k, v in rows], colWidths=[col1, 170*mm - col1 - 2*mm])
     t.setStyle(TableStyle([("VALIGN", (0,0), (-1,-1), "TOP"), ("LINEBELOW", (0,0), (-1,-1), 0.4, LINE),
-                           ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4)]))
+                           ("TOPPADDING", (0,0), (-1,-1), 3), ("BOTTOMPADDING", (0,0), (-1,-1), 3)]))
     return t
 
 def header_footer(canv, doc):
@@ -63,20 +63,30 @@ def cover(canv, doc):
     canv.saveState()
     w, h = A4
     canv.setFillColor(INK); canv.rect(0, 0, w, h, fill=1, stroke=0)
-    canv.setFillColor(ACC); canv.rect(0, 0, 10*mm, h, fill=1, stroke=0)
+    foto = DATA.get("foto_sampul")
+    if foto and (ROOT / foto).exists():
+        # foto kantor memenuhi separuh atas sampul (crop proporsional)
+        from PIL import Image as PILImage
+        im = PILImage.open(ROOT / foto); iw, ih = im.size
+        box_w, box_h = w, h * 0.46
+        scale = max(box_w / iw, box_h / ih); cw, ch = iw * scale, ih * scale
+        canv.saveState(); pth = canv.beginPath(); pth.rect(0, h - box_h, box_w, box_h); canv.clipPath(pth, stroke=0)
+        canv.drawImage(str(ROOT / foto), (box_w - cw) / 2, h - box_h - (ch - box_h) / 2, cw, ch)
+        canv.restoreState()
+    canv.setFillColor(ACC); canv.rect(0, 0, 10*mm, h * 0.54, fill=1, stroke=0)
     if LOGO.exists():
-        canv.drawImage(str(LOGO), 24*mm, h - 60*mm, 22*mm, 22*mm, mask="auto")
+        canv.drawImage(str(LOGO), 24*mm, h * 0.54 - 34*mm, 20*mm, 20*mm, mask="auto")
     canv.setFillColor(colors.white); canv.setFont("Helvetica-Bold", 34)
-    canv.drawString(24*mm, h - 85*mm, "BRIIX")
-    canv.setFillColor(colors.HexColor("#8FB3F2")); canv.drawString(24*mm + 61*mm, h - 85*mm, "OSP")
+    canv.drawString(50*mm, h * 0.54 - 28*mm, "BRIIX")
+    canv.setFillColor(colors.HexColor("#8FB3F2")); canv.drawString(50*mm + 61*mm, h * 0.54 - 28*mm, "OSP")
     canv.setFillColor(colors.white); canv.setFont("Helvetica-Bold", 16)
-    canv.drawString(24*mm, h - 100*mm, "Company Profile")
+    canv.drawString(24*mm, h * 0.54 - 50*mm, "Company Profile")
     canv.setFont("Helvetica", 11); canv.setFillColor(colors.HexColor("#C9CDD3"))
-    y = h - 112*mm
+    y = h * 0.54 - 62*mm
     for line in wrap(DATA["tagline"], 70):
         canv.drawString(24*mm, y, line); y -= 6*mm
     canv.setFont("Helvetica", 10); canv.setFillColor(colors.HexColor("#A6ACB5"))
-    canv.drawString(24*mm, 40*mm, DATA["legal"]["nama_badan_usaha"])
+    canv.drawString(24*mm, 40*mm, DATA["legal"]["nama_badan_usaha"] + (f' ({DATA["legal"]["singkatan"]})' if DATA["legal"].get("singkatan") else ""))
     canv.drawString(24*mm, 34*mm, f"{DATA['web_url']}   ·   pusat: {DATA['pusat_url']}")
     canv.drawString(24*mm, 28*mm, "Diperbarui " + datetime.date.today().strftime("%d %B %Y"))
     canv.restoreState()
@@ -103,19 +113,23 @@ def build():
         f"FTTH untuk penyedia internet dan mitra ICT: survei & desain, tarik kabel, tanam tiang, jointing FDT/FAT, uji redaman OPM "
         f"per port, hingga laporan ATP dan serah terima."), LEAD))
     s.append(Spacer(1, 4))
+    if DATA.get("latar_belakang"):
+        s.append(Paragraph(esc(DATA["latar_belakang"]), BODY)); s.append(Spacer(1, 4))
     s.append(Paragraph(esc(
         "Seluruh pekerjaan dikelola lewat aplikasi lapangan milik sendiri: setiap bukti foto diambil dari kamera aplikasi dengan "
         "lokasi GPS, diverifikasi tim QC sebelum dilaporkan, dan klien dapat memantau progres serta nilai opname melalui portal."), BODY))
 
     s.append(Paragraph("Legalitas perusahaan", H2))
-    rows = [("Nama badan usaha", L["nama_badan_usaha"]), ("Bentuk", L["bentuk"]), ("Akta pendirian", L["akta_pendirian"]),
-            ("SK Kemenkumham", L["sk_kemenkumham"]), ("NIB", L["nib"]), ("NPWP", L["npwp"]), ("Status PKP", L["pkp"]),
-            ("KBLI", "; ".join(L["kbli"])), ("Alamat", L["alamat"]), ("Telepon / WA", L["telepon"]), ("Email", L["email"]),
-            ("Direktur", L["direktur"]), ("Rekening", L["bank"])]
+    rows = [("Nama badan usaha", L["nama_badan_usaha"] + (f' (disingkat {L["singkatan"]})' if L.get("singkatan") else "")),
+            ("Bentuk", L["bentuk"]), ("Akta pendirian", L["akta_pendirian"]),
+            ("SK Kemenkumham", L["sk_kemenkumham"]), ("NIB", L["nib"]), ("NPWP", L["npwp"]), ("Status PKP", L["pkp"])]
+    if L.get("modal"): rows.append(("Modal", L["modal"]))
+    rows += [("KBLI", "; ".join(L["kbli"])), ("Alamat", L["alamat"]), ("Telepon / WA", L["telepon"]), ("Email", L["email"]),
+             ("Pengurus", L["direktur"]), ("Rekening", L["bank"])]
+    if L.get("izin_lain"): rows.append(("Izin lain", "; ".join(L["izin_lain"])))
     if L.get("sertifikat_lain"): rows.append(("Sertifikat lain", "; ".join(L["sertifikat_lain"])))
     s.append(kv_table(rows))
-    s.append(Spacer(1, 6))
-    s.append(Paragraph("Salinan dokumen legalitas (akta, SK, NIB, NPWP) dilampirkan terpisah atas permintaan.", SMALL))
+    s.append(Paragraph("Salinan dokumen legalitas (akta pendirian, SK Kemenkumham, NIB, NPWP, PKPLH) tersedia dan dilampirkan atas permintaan.", SMALL))
 
     # halaman 2: layanan + cara kerja
     s.append(PageBreak())
@@ -146,7 +160,8 @@ def build():
         "Satu foto untuk satu port/titik; foto ganda dan foto galeri ditolak sistem secara otomatis.",
         "Angka di laporan identik dengan layar alat ukur di foto — tidak diketik ulang.",
         "Material dan spesifikasi mengikuti standar tertulis yang disetujui klien/main vendor.",
-        "Tim lapangan dibekali APD; pekerja terdaftar BPJS Ketenagakerjaan (sesuai ketentuan kontrak).",
+        "Tim lapangan dibekali APD; pendaftaran BPJS Ketenagakerjaan pekerja mengikuti ketentuan kontrak.",
+        "Kami terbuka untuk mengikuti pelatihan/sertifikasi teknisi yang disyaratkan klien atau main vendor.",
         "Tahapan proyek (Berjalan → RFS → ATP → Revisi ATP → Lunas) terlihat oleh semua pihak."]], bulletType="bullet", leftIndent=14))
 
     # halaman 3: pengalaman, tim, peralatan, kontak
