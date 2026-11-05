@@ -1,0 +1,55 @@
+{
+  "_catatan": "Data perusahaan untuk PDF company profile BRIIX OSP. Isi semua yang masih [ISI ...]. Jalankan: python3 tools/build_company_profile.py",
+  "brand": "BRIIX OSP",
+  "tagline": "Kontraktor Jaringan Fiber Optik Luar Gedung (Outside Plant) untuk Penyedia Internet",
+  "pusat_url": "https://briix.co.id",
+  "web_url": "https://osp.briix.co.id",
+  "tahun_mulai": "[ISI tahun berdiri]",
+
+  "legal": {
+    "nama_badan_usaha": "[ISI nama PT/CV lengkap]",
+    "bentuk": "[ISI PT / CV]",
+    "akta_pendirian": "[ISI No. akta, tanggal, notaris]",
+    "sk_kemenkumham": "[ISI No. SK pengesahan]",
+    "nib": "[ISI NIB]",
+    "npwp": "[ISI NPWP]",
+    "pkp": "[ISI PKP / Non-PKP]",
+    "kbli": ["[ISI KBLI, mis. 42217 Konstruksi Sentral Telekomunikasi]", "[ISI KBLI lain]"],
+    "sertifikat_lain": ["[ISI mis. SBU / SKK / ISO jika ada, atau hapus baris ini]"],
+    "alamat": "[ISI alamat kantor lengkap]",
+    "telepon": "[ISI nomor telepon/WhatsApp]",
+    "email": "[ISI email]",
+    "direktur": "[ISI nama direktur]",
+    "bank": "[ISI nama bank, no. rekening, atas nama]"
+  },
+
+  "layanan": [
+    ["Survei & desain KMZ", "Survei jalur, penempatan FDT/FAT & tiang, perhitungan homepass, desain KMZ siap bangun atau penyesuaian desain klien."],
+    ["Tarik kabel distribusi & feeder", "Penarikan kabel udara per line dengan sling/messenger, slack dan aksesoris; dicatat per meter terpasang."],
+    ["Tanam tiang", "Pengadaan dan pemasangan tiang sesuai titik desain, termasuk penandaan kode tiang."],
+    ["Jointing FDT & FAT", "Penyambungan core feeder ke splitter FDT, FDT ke tiap FAT, dan terminasi FAT; dihitung per core."],
+    ["Uji redaman OPM", "Pengukuran daya optik setiap port FAT dengan bukti foto layar alat ukur, dibandingkan terhadap input FDT."],
+    ["Laporan & serah terima (ATP)", "Laporan uji per FAT dalam format klien, rekap foto FAT selesai, as-built, tindak lanjut revisi ATP sampai lunas."]
+  ],
+
+  "pengalaman": [
+    ["MyRepublic", "Cluster Temu RW 1,2,3 Bojonegoro (TMU123.035)", "1 FDT, 24 FAT, 192 port, 346 homepass — jointing FDT/FAT, uji OPM 192 port, laporan ATP", "2026"],
+    ["MyRepublic", "Cluster Temu RW 4,5,6 Bojonegoro (TMU456)", "Jointing & uji OPM", "2026"]
+  ],
+
+  "tim": [
+    ["[ISI jumlah] teknisi splicer", "bersertifikat / berpengalaman jointing & OPM"],
+    ["[ISI jumlah] tim tarik kabel & tiang", "borongan per line"],
+    ["Surveyor, drafter KMZ, QC", "kantor & lapangan"]
+  ],
+
+  "peralatan": [
+    "Fusion splicer & cleaver",
+    "OPM (optical power meter) & OLS",
+    "OTDR (jika ada — hapus kalau tidak)",
+    "Peralatan tarik kabel udara (tensioner, sling, aksesoris)",
+    "APD lengkap: helm, sabuk pengaman, sarung tangan, rompi"
+  ],
+
+  "referensi_klien": ["MyRepublic (melalui mitra ICT wilayah)", "Fistmedia"]
+}

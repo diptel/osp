@@ -81,6 +81,7 @@
       <a href="#proses">Cara kerja</a>
       <a href="#sistem">Sistem</a>
       <a href="#kontak">Kontak</a>
+      <a href="/assets/company-profile-briix-osp.pdf" class="cp" hidden download>Company profile (PDF)</a>
       <a href="https://briix.co.id" target="_blank" rel="noopener">briix.co.id ↗</a>
       <a class="btn" href="/app/login/">Masuk aplikasi</a>
     </nav>
@@ -95,6 +96,7 @@
     <div class="cta">
       <a class="primary" href="#kontak">Ajukan penawaran</a>
       <a class="ghost" href="#layanan">Lihat layanan</a>
+      <a class="ghost cp" href="/assets/company-profile-briix-osp.pdf" hidden download>⬇ Unduh company profile &amp; legalitas</a>
     </div>
     <div class="stats">
       <div><b>Survei → ATP</b><span>satu vendor dari awal sampai serah terima</span></div>
@@ -168,6 +170,7 @@
     <h2>Kontak</h2>
     <p class="lead">Untuk penawaran, kerja sama, atau pertanyaan proyek. Untuk urusan grup/pusat, hubungi melalui briix.co.id.</p>
     <div class="contact">
+      <div class="card cp" hidden><h3>Company profile &amp; legalitas</h3><p>Profil perusahaan, layanan, pengalaman proyek, dan data legalitas (akta, NIB, NPWP) dalam satu PDF untuk kebutuhan vendor registration / PKS.</p><p style="margin-top:10px"><a href="/assets/company-profile-briix-osp.pdf" download>⬇ Unduh PDF</a></p></div>
       <div class="card"><h3>Permintaan penawaran</h3><p>Kirim lingkup pekerjaan (area, jumlah FAT/homepass, tahap yang dibutuhkan) dan kami susun penawaran per paket.</p><p style="margin-top:10px"><a href="https://briix.co.id" target="_blank" rel="noopener">Hubungi lewat briix.co.id ↗</a></p></div>
       <div class="card"><h3>Klien &amp; mitra</h3><p>Pantau proyek lewat link portal yang diberikan, atau masuk ke aplikasi dengan akun yang disediakan.</p><p style="margin-top:10px"><a href="/app/login/">Masuk aplikasi →</a></p></div>
       <div class="card"><h3>Tim lapangan</h3><p>Teknisi, mandor, dan mitra pemborong menggunakan aplikasi yang sama dari ponsel (bisa dipasang sebagai aplikasi).</p><p style="margin-top:10px"><a href="/app/login/">Buka aplikasi teknisi →</a></p></div>
@@ -181,6 +184,10 @@
     <span><a href="https://briix.co.id" target="_blank" rel="noopener">briix.co.id</a> &nbsp;·&nbsp; <a href="/app/login/">Masuk aplikasi</a></span>
   </div>
 </footer>
-<script>document.getElementById("y").textContent=new Date().getFullYear()</script>
+<script>
+document.getElementById("y").textContent=new Date().getFullYear();
+// Tautan company profile hanya tampil kalau file PDF-nya sudah ada.
+fetch("/assets/company-profile-briix-osp.pdf",{method:"HEAD"}).then(r=>{if(r.ok)document.querySelectorAll(".cp").forEach(e=>e.hidden=false)}).catch(()=>{});
+</script>
 </body>
 </html>

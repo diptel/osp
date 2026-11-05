@@ -29,6 +29,14 @@ jobs:
       APP_DIR: /opt/1panel/docker/compose/briixosp
     steps:
       - uses: actions/checkout@v4
+      - name: Bangun PDF company profile (hanya kalau data legalitas lengkap)
+        run: |
+          if grep -q '\[ISI' tools/company_profile.json; then
+            echo "company_profile.json masih ada [ISI ...] — PDF tidak dibangun, tautan di situs tetap tersembunyi."
+          else
+            python3 -m pip install --user --quiet reportlab pillow 2>/dev/null || python3 -m pip install --quiet reportlab pillow
+            python3 tools/build_company_profile.py
+          fi
       - name: Salin ke folder compose (pb_data tidak disentuh)
         run: |
           set -e
