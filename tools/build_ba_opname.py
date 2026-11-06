@@ -77,7 +77,7 @@ def build(d, out):
     TITLE = st("t", fontName="Helvetica-Bold", fontSize=15, leading=18, alignment=TA_CENTER)
     SUB = st("s", fontSize=10, alignment=TA_CENTER, textColor=colors.HexColor("#5F6670"))
     BODY = st("b", alignment=TA_JUSTIFY); SMALL = st("sm", fontSize=8.5, leading=11)
-    CELL = st("c", fontSize=9, leading=11.5); CELLB = st("cb", fontName="Helvetica-Bold", fontSize=9, leading=11.5)
+    CELL = st("c", fontSize=8.8, leading=11); CELLB = st("cb", fontName="Helvetica-Bold", fontSize=9, leading=11.5)
     CELLR = st("cr", fontSize=9, leading=11.5, alignment=2); CELLRB = st("crb", fontName="Helvetica-Bold", fontSize=9, leading=11.5, alignment=2)
 
     tgl = datetime.date.fromisoformat(d["tanggal"])
@@ -110,14 +110,14 @@ def build(d, out):
                  ("Periode opname", d["periode"]), ("Termin", d["termin"])]))
     s.append(Spacer(1, 8))
 
-    head = [Paragraph(x, CELLB) for x in ["No", "Uraian pekerjaan", "Sat.", "Vol. kontrak", "Kumulatif s/d BA lalu", "Opname ini", "Harga satuan", "Jumlah"]]
+    head = [Paragraph(x, CELLB) for x in ["No", "Uraian pekerjaan", "Sat.", "Vol. kontrak", "Kumulatif BA lalu", "Opname ini", "Harga satuan", "Jumlah"]]
     rows = [head]; total = 0
     for i, (nama, sat, vol, kum, now, harga) in enumerate(d["items"], 1):
         jumlah = now * harga; total += jumlah
         rows.append([Paragraph(str(i), CELL), Paragraph(nama, CELL), Paragraph(sat, CELL), Paragraph(f"{vol:g}", CELLR),
                      Paragraph(f"{kum - now:g}", CELLR), Paragraph(f"<b>{now:g}</b>", CELLR), Paragraph(rp(harga), CELLR), Paragraph(rp(jumlah), CELLR)])
     rows.append(["", Paragraph("<b>TOTAL OPNAME INI</b>", CELLB), "", "", "", "", "", Paragraph(f"<b>{rp(total)}</b>", CELLRB)])
-    t = Table(rows, colWidths=[7*mm, 45*mm, 10*mm, 15*mm, 20*mm, 15*mm, 27*mm, 31*mm], repeatRows=1)
+    t = Table(rows, colWidths=[8*mm, 46*mm, 12*mm, 16*mm, 20*mm, 16*mm, 24*mm, 28*mm], repeatRows=1)
     t.setStyle(TableStyle([("GRID", (0,0), (-1,-1), 0.5, LINE), ("BACKGROUND", (0,0), (-1,0), BG), ("BACKGROUND", (0,-1), (-1,-1), BG),
                            ("VALIGN", (0,0), (-1,-1), "MIDDLE"), ("TOPPADDING", (0,0), (-1,-1), 4), ("BOTTOMPADDING", (0,0), (-1,-1), 4)]))
     s.append(t)
