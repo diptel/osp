@@ -6,6 +6,7 @@ import { pb } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 import { AttendanceForm, type Worker } from "@/components/AttendanceForm";
 import { ExpenseList, EXPENSE_CATEGORY, rupiah, type ExpenseRow } from "@/components/ExpenseList";
+import { ReportList } from "@/components/ReportList";
 
 type Project = RecordModel & {
   cluster_name: string;
@@ -21,7 +22,7 @@ type AttendanceRow = RecordModel & { worker: string; date: string; present: bool
 type RateRow = RecordModel & { worker: string; daily_rate?: number; overtime_rate?: number };
 type Opname = { total_amount: number; packages: { name: string; amount: number }[] };
 
-type Tab = "ringkasan" | "absensi" | "biaya" | "tarif";
+type Tab = "ringkasan" | "absensi" | "biaya" | "tarif" | "laporan";
 
 function isoDate(v?: string) {
   return v ? v.slice(0, 10) : "";
@@ -171,6 +172,7 @@ export default function ManajemenProyekPage() {
     ["absensi", "Absensi"],
     ["biaya", "Biaya"],
     ["tarif", "Tarif per proyek"],
+    ["laporan", "Laporan PDF"],
   ];
 
   return (
@@ -351,6 +353,16 @@ export default function ManajemenProyekPage() {
               </table>
             </div>
           )}
+        </div>
+      )}
+
+      {tab === "laporan" && (
+        <div className="max-w-2xl flex flex-col gap-2">
+          <p className="text-sm text-muted">
+            Laporan manajemen proyek (internal BRIIX, bukan untuk klien): nilai opname, berita acara, tenaga kerja, biaya per
+            kategori, untung/rugi, dan lampiran rincian biaya. Tersimpan per proyek — generate ulang kalau data berubah.
+          </p>
+          <ReportList projectId={pid} kind="manajemen" canDelete />
         </div>
       )}
 

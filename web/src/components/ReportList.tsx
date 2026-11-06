@@ -10,6 +10,7 @@ type ReportRow = RecordModel & { file: string; label?: string; created: string; 
 const KIND_LABEL: Record<string, string> = {
   opm: "Laporan OPM",
   fat_finish: "Rekap Finish FAT",
+  manajemen: "Laporan Manajemen Proyek",
 };
 
 /**
@@ -24,7 +25,7 @@ export function ReportList({
   canGenerate = true,
 }: {
   projectId: string;
-  kind?: "opm" | "fat_finish";
+  kind?: "opm" | "fat_finish" | "manajemen";
   canDelete?: boolean;
   canGenerate?: boolean;
 }) {
@@ -40,7 +41,7 @@ export function ReportList({
   const allowedToGenerate = canGenerate && isAdmin;
 
   function load() {
-    const kindFilter = kind === "opm" ? '(kind = "opm" || kind = "")' : 'kind = "fat_finish"';
+    const kindFilter = kind === "opm" ? '(kind = "opm" || kind = "")' : `kind = "${kind}"`;
     pb()
       .collection("reports")
       .getFullList<ReportRow>({ filter: `project = "${projectId}" && ${kindFilter}`, sort: "-created" })

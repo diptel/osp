@@ -21,6 +21,7 @@ import {
   fetchFatFinishReportData,
 } from "@/lib/opmReportPdf";
 import type { AppUser } from "@/lib/pocketbase";
+import { fetchManajemenData, buildManajemenReportPdf } from "@/lib/manajemenReportPdf";
 
 export const runtime = "nodejs";
 
@@ -29,6 +30,7 @@ const PB_INTERNAL_URL = process.env.PB_INTERNAL_URL || "http://briixosp:8090";
 const KIND_LABEL: Record<string, string> = {
   opm: "Laporan OPM",
   fat_finish: "Rekap Finish FAT",
+  manajemen: "Laporan Manajemen Proyek",
 };
 
 export async function POST(req: NextRequest) {
@@ -44,7 +46,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Body request tidak valid." }, { status: 400 });
   }
   const { projectId } = body;
-  const kind = body.kind === "fat_finish" ? "fat_finish" : "opm";
+  const kind = body.kind === "fat_finish" ? "fat_finish" : body.kind === "manajemen" ? "manajemen" : "opm";
   if (!projectId) {
     return NextResponse.json({ error: "projectId wajib diisi." }, { status: 400 });
   }
@@ -68,7 +70,13 @@ export async function POST(req: NextRequest) {
     let label: string;
     let clusterName = "";
 
-    if (kind === "fat_finish") {
+    if (kind === "manajemen") {
+      const data = await fetchManajemenData(projectId, client);
+      const doc = buildManajemenReportPdf(data, user.name || user.email || "admin");
+      bytes = doc.output("arraybuffer") as ArrayBuffer;
+      label = `${KIND_LABEL[kind]} — ${stamp}`;
+      clusterName = data.project.cluster_name;
+    } else if (kind === "fat_finish") {
       const data = await fetchFatFinishReportData(projectId, client);
       if (data.entries.length === 0) {
         return NextResponse.json(
