@@ -116,17 +116,26 @@ export default function ManajemenProyekPage() {
       .map((w) => {
         const s = byWorker.get(w.id)!;
         const r = rateOf(w);
-        // Pegawai bulanan digaji perusahaan — yang dibebankan ke proyek hanya
-        // lemburnya. Freelance: hari × tarif + lembur × tarif lembur.
-        const cost = (w.employment === "bulanan" ? 0 : s.days * r.daily) + s.overtime * r.overtime;
-        return { w, days: s.days, overtime: s.overtime, rate: r, cost };
+        // Biaya proyek lengkap = hari × tarif/hari + lembur × tarif lembur
+        // untuk semua. Tapi dipisah: pegawai bulanan hari-nya adalah ALOKASI
+        // gaji (sudah dibayar lewat gaji bulanan, bukan kas proyek), sedangkan
+        // yang DIBAYAR TUNAI dari proyek = freelance (hari + lembur) dan
+        // lembur pegawai bulanan — ini yang dipakai untuk hitung bayaran.
+        const dayCost = s.days * r.daily;
+        const otCost = s.overtime * r.overtime;
+        const alokasi = w.employment === "bulanan" ? dayCost : 0;
+        const tunai = (w.employment === "bulanan" ? 0 : dayCost) + otCost;
+        const cost = dayCost + otCost;
+        return { w, days: s.days, overtime: s.overtime, rate: r, cost, alokasi, tunai };
       })
       .sort((a, b) => b.cost - a.cost);
     const total = rows.reduce((s, r) => s + r.cost, 0);
+    const totalTunai = rows.reduce((s, r) => s + r.tunai, 0);
+    const totalAlokasi = rows.reduce((s, r) => s + r.alokasi, 0);
     const bulanan = rows.filter((r) => r.w.employment === "bulanan").length;
     const freelance = rows.filter((r) => r.w.employment === "freelance").length;
     const overtimeTotal = rows.reduce((s, r) => s + r.overtime, 0);
-    return { rows, total, workDays: dates.size, bulanan, freelance, overtimeTotal };
+    return { rows, total, totalTunai, totalAlokasi, workDays: dates.size, bulanan, freelance, overtimeTotal };
   }, [att, workers, rateOf]);
 
   const expenseByCat = useMemo(() => {
@@ -207,7 +216,7 @@ export default function ManajemenProyekPage() {
           {/* Kartu angka utama */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Stat label="Nilai opname (disetujui QC)" value={rupiah(revenue)} sub={opname ? `${opname.packages.length} paket` : "—"} />
-            <Stat label="Biaya tenaga kerja (dibayar dari proyek)" value={rupiah(labor.total)} sub={`${labor.rows.length} pekerja · ${labor.overtimeTotal}× lembur · bulanan hanya lembur`} />
+            <Stat label="Biaya tenaga kerja" value={rupiah(labor.total)} sub={`tunai ${rupiah(labor.totalTunai)} · alokasi gaji bulanan ${rupiah(labor.totalAlokasi)}`} />
             <Stat label="Biaya lain-lain" value={rupiah(expenseTotal)} sub={`${expenses.length} transaksi`} />
             <Stat
               label={margin >= 0 ? "Untung (sementara)" : "Rugi (sementara)"}
@@ -260,7 +269,7 @@ export default function ManajemenProyekPage() {
             <div className="px-4 py-3 flex items-center justify-between">
               <p className="text-sm font-semibold">Tenaga kerja</p>
               <p className="text-xs text-muted">
-                {labor.bulanan} bulanan · {labor.freelance} freelance
+                {labor.bulanan} bulanan · {labor.freelance} freelance · <b>Dibayar tunai</b> = freelance (hari+lembur) + lembur bulanan; alokasi gaji = hari bulanan × tarif (sudah lewat gaji)
               </p>
             </div>
             {labor.rows.length === 0 ? (
@@ -273,7 +282,9 @@ export default function ManajemenProyekPage() {
                     <th className="text-right px-3 py-2">Hari</th>
                     <th className="text-right px-3 py-2">Lembur</th>
                     <th className="text-right px-3 py-2">Tarif/hari</th>
-                    <th className="text-right px-4 py-2">Dibayar dari proyek</th>
+                    <th className="text-right px-3 py-2">Alokasi gaji</th>
+                    <th className="text-right px-3 py-2">Dibayar tunai</th>
+                    <th className="text-right px-4 py-2">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -288,16 +299,18 @@ export default function ManajemenProyekPage() {
                       </td>
                       <td className="px-3 py-2 text-right">{r.days}</td>
                       <td className="px-3 py-2 text-right">{r.overtime}×</td>
-                      <td className="px-3 py-2 text-right">
-                        {r.w.employment === "bulanan" ? <span className="text-faint text-xs">gaji perusahaan</span> : rupiah(r.rate.daily)}
-                      </td>
-                      <td className="px-4 py-2 text-right font-semibold">{rupiah(r.cost)}</td>
+                      <td className="px-3 py-2 text-right">{rupiah(r.rate.daily)}</td>
+                      <td className="px-3 py-2 text-right text-subtle">{r.alokasi ? rupiah(r.alokasi) : "—"}</td>
+                      <td className="px-3 py-2 text-right font-semibold">{rupiah(r.tunai)}</td>
+                      <td className="px-4 py-2 text-right">{rupiah(r.cost)}</td>
                     </tr>
                   ))}
                   <tr className="border-t border-border bg-[#FAFAF8]">
                     <td className="px-4 py-2 font-semibold" colSpan={4}>
                       Total tenaga kerja
                     </td>
+                    <td className="px-3 py-2 text-right text-subtle">{rupiah(labor.totalAlokasi)}</td>
+                    <td className="px-3 py-2 text-right font-semibold">{rupiah(labor.totalTunai)}</td>
                     <td className="px-4 py-2 text-right font-semibold">{rupiah(labor.total)}</td>
                   </tr>
                 </tbody>

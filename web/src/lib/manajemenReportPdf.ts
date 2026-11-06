@@ -20,9 +20,11 @@ export type ManajemenData = {
     target_days?: number;
     budget?: number;
   };
-  workers: { name: string; employment: string; days: number; overtime: number; daily: number; overtimeRate: number; cost: number }[];
+  workers: { name: string; employment: string; days: number; overtime: number; daily: number; overtimeRate: number; cost: number; alokasi: number; tunai: number }[];
   workDays: number;
   laborTotal: number;
+  laborTunai: number;
+  laborAlokasi: number;
   expensesByCat: { category: string; label: string; count: number; amount: number }[];
   expenses: { date: string; category: string; amount: number; note: string; by: string }[];
   expenseTotal: number;
@@ -90,12 +92,17 @@ export async function fetchManajemenData(projectId: string, client: Client): Pro
         overtime: s.overtime,
         daily,
         overtimeRate,
-        // bulanan: gaji ditanggung perusahaan, proyek hanya bayar lembur
-        cost: (String(w.employment) === "bulanan" ? 0 : s.days * daily) + s.overtime * overtimeRate,
+        // biaya lengkap = hari + lembur; dipisah: bulanan hari = alokasi gaji
+        // (bukan kas proyek), tunai = freelance hari+lembur + lembur bulanan
+        cost: s.days * daily + s.overtime * overtimeRate,
+        alokasi: String(w.employment) === "bulanan" ? s.days * daily : 0,
+        tunai: (String(w.employment) === "bulanan" ? 0 : s.days * daily) + s.overtime * overtimeRate,
       };
     })
     .sort((a, b) => b.cost - a.cost);
   const laborTotal = wrows.reduce((s, r) => s + r.cost, 0);
+  const laborTunai = wrows.reduce((s, r) => s + r.tunai, 0);
+  const laborAlokasi = wrows.reduce((s, r) => s + r.alokasi, 0);
 
   const catMap = new Map<string, { count: number; amount: number }>();
   for (const e of expenses) {
@@ -134,6 +141,8 @@ export async function fetchManajemenData(projectId: string, client: Client): Pro
     workers: wrows,
     workDays: dates.size,
     laborTotal,
+    laborTunai,
+    laborAlokasi,
     expensesByCat,
     expenses: expenses.map((e) => ({
       date: String(e.date).slice(0, 10),
@@ -310,7 +319,7 @@ export function buildManajemenReportPdf(data: ManajemenData, generatedBy: string
   const margin = data.revenue - cost;
   pg.stats([
     { label: "NILAI OPNAME (DISETUJUI QC)", value: rp(data.revenue), sub: `${data.opname.length} paket` },
-    { label: "BIAYA TENAGA KERJA", value: rp(data.laborTotal), sub: `${data.workers.length} pekerja · ${data.workDays} hari kerja` },
+    { label: "BIAYA TENAGA KERJA", value: rp(data.laborTotal), sub: `tunai ${rp(data.laborTunai)} · alokasi gaji ${rp(data.laborAlokasi)}` },
     { label: "BIAYA LAIN-LAIN", value: rp(data.expenseTotal), sub: `${data.expenses.length} transaksi` },
     {
       label: margin >= 0 ? "UNTUNG (SEMENTARA)" : "RUGI (SEMENTARA)",
@@ -349,11 +358,27 @@ export function buildManajemenReportPdf(data: ManajemenData, generatedBy: string
   if (data.workers.length === 0) pg.p("Belum ada absensi tercatat.");
   else
     pg.table(
-      [{ w: 34 }, { w: 14 }, { w: 10, align: "right" }, { w: 12, align: "right" }, { w: 18, align: "right" }, { w: 18, align: "right" }, { w: 22, align: "right" }],
-      ["Pekerja", "Tipe", "Hari", "Lembur", "Tarif/hari", "Tarif lembur", "Dibayar proyek"],
-      data.workers.map((w) => [w.name, w.employment === "bulanan" ? "Bulanan" : "Freelance", String(w.days), `${w.overtime}×`, w.employment === "bulanan" ? "gaji perush." : rp(w.daily), rp(w.overtimeRate), rp(w.cost)]),
-      { total: ["Total tenaga kerja", "", String(data.workers.reduce((s, w) => s + w.days, 0)), `${data.workers.reduce((s, w) => s + w.overtime, 0)}×`, "", "", rp(data.laborTotal)], zebra: true }
+      [{ w: 30 }, { w: 13 }, { w: 9, align: "right" }, { w: 11, align: "right" }, { w: 16, align: "right" }, { w: 18, align: "right" }, { w: 18, align: "right" }, { w: 19, align: "right" }],
+      ["Pekerja", "Tipe", "Hari", "Lembur", "Tarif/hari", "Alokasi gaji", "Dibayar tunai", "Total"],
+      data.workers.map((w) => [w.name, w.employment === "bulanan" ? "Bulanan" : "Freelance", String(w.days), `${w.overtime}×`, rp(w.daily), w.alokasi ? rp(w.alokasi) : "-", rp(w.tunai), rp(w.cost)]),
+      { total: ["Total tenaga kerja", "", String(data.workers.reduce((s, w) => s + w.days, 0)), `${data.workers.reduce((s, w) => s + w.overtime, 0)}×`, "", rp(data.laborAlokasi), rp(data.laborTunai), rp(data.laborTotal)], zebra: true }
     );
+  if (data.workers.length) {
+    pg.h2("Daftar pembayaran tunai tenaga kerja", `Total ${rp(data.laborTunai)}`);
+    pg.table(
+      [{ w: 36 }, { w: 14 }, { w: 30 }, { w: 20, align: "right" }],
+      ["Pekerja", "Tipe", "Dasar", "Dibayar"],
+      data.workers
+        .filter((w) => w.tunai > 0)
+        .map((w) => [
+          w.name,
+          w.employment === "bulanan" ? "Bulanan" : "Freelance",
+          w.employment === "bulanan" ? `lembur ${w.overtime}× ${rp(w.overtimeRate)}` : `${w.days} hari × ${rp(w.daily)} + lembur ${w.overtime}× ${rp(w.overtimeRate)}`,
+          rp(w.tunai),
+        ]),
+      { total: ["Total dibayar tunai", "", "", rp(data.laborTunai)], zebra: true }
+    );
+  }
 
   // Biaya
   pg.h2("3. Biaya lain-lain per kategori", `Total ${rp(data.expenseTotal)}`);
@@ -373,13 +398,14 @@ export function buildManajemenReportPdf(data: ManajemenData, generatedBy: string
     ["Uraian", "Jumlah"],
     [
       ["Nilai opname (pendapatan)", rp(data.revenue)],
-      ["Biaya tenaga kerja", `(${rp(data.laborTotal)})`],
+      ["Biaya tenaga kerja — dibayar tunai (freelance + lembur)", `(${rp(data.laborTunai)})`],
+      ["Biaya tenaga kerja — alokasi gaji pegawai bulanan", `(${rp(data.laborAlokasi)})`],
       ["Biaya lain-lain", `(${rp(data.expenseTotal)})`],
     ],
     { total: [margin >= 0 ? "Untung sementara" : "Rugi sementara", rp(margin)] }
   );
   pg.p(
-    "Catatan: nilai opname dihitung dari volume yang disetujui QC × harga satuan paket, belum tentu sama dengan yang sudah ditagihkan/dibayar klien. Biaya tenaga kerja yang dibebankan ke proyek: freelance = hari hadir × tarif/hari + lembur × tarif lembur; pegawai bulanan digaji perusahaan sehingga hanya lemburnya yang dihitung (tarif khusus proyek menimpa tarif profil).",
+    "Catatan: nilai opname dihitung dari volume yang disetujui QC × harga satuan paket, belum tentu sama dengan yang sudah ditagihkan/dibayar klien. Biaya tenaga kerja dihitung lengkap (hari × tarif/hari + lembur × tarif lembur) supaya untung/rugi proyek utuh, lalu dipisah: 'dibayar tunai' = freelance (hari + lembur) dan lembur pegawai bulanan — ini dasar pembayaran; 'alokasi gaji' = hari pegawai bulanan × tarif/hari (sudah dibayar lewat gaji bulanan). Tarif khusus proyek menimpa tarif profil.",
     7.5
   );
 
