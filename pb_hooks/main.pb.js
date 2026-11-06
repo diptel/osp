@@ -201,15 +201,15 @@ routerAdd("GET", "/api/briix/portal/{token}", (e) => {
              lat: pos ? pos.lat : null, lon: pos ? pos.lon : null, tests }
   }).sort((a, b) => a.code < b.code ? -1 : 1)
 
-  // Progres paket (selain OPM)
-  const packages = all("work_packages", "project = {:p} && type != 'opm'").map((p) => {
-    let qty = 0
-    for (const it of e.app.findRecordsByFilter("work_items", "package = {:k} && status = 'approved'", "", 0, 0, { k: p.id })) {
-      qty += it.getFloat("qty")
-    }
-    return { type: p.getString("type"), name: p.getString("name"), unit: p.getString("unit"),
-             volume: p.getFloat("volume"), approved_qty: qty }
-  })
+  // Progres paket (semua jenis, cara hitung sesuai count_mode) — tanpa harga
+  const packages = require(`${__hooks}/utils.js`).packageProgress(e.app, pid).packages.map((p) => ({
+    type: p.type, name: p.name, unit: p.unit, volume: p.volume, approved_qty: p.approved_qty,
+  }))
+
+  // Laporan PDF tersimpan yang boleh dilihat klien (OPM & rekap Finish FAT;
+  // laporan manajemen internal TIDAK ikut)
+  const reports = e.app.findRecordsByFilter("reports", "project = {:p} && (kind = 'opm' || kind = 'fat_finish' || kind = '')", "-created", 0, 0, { p: pid })
+    .map((r) => ({ id: r.id, kind: r.getString("kind") || "opm", label: r.getString("label"), created: r.getString("created") }))
 
   return e.json(200, {
     client: client.getString("name"),
@@ -221,6 +221,49 @@ routerAdd("GET", "/api/briix/portal/{token}", (e) => {
     },
     opm: { ports_total: portsTotal, ports_approved: approved.length, fats: fatList },
     packages,
+    reports,
     generated_at: new Date().toISOString(),
   })
+})
+
+// Unduh file laporan lewat portal (tanpa login) — hanya laporan OPM/Finish FAT
+// milik proyek yang token-nya cocok.
+routerAdd("GET", "/api/briix/portal/{token}/report/{rid}", (e) => {
+  const token = e.request.pathValue("token")
+  if (!token || token.length < 24) throw new NotFoundError()
+  let project
+  try { project = e.app.findFirstRecordByFilter("projects", "portal_token = {:t}", { t: token }) } catch (_) { throw new NotFoundError() }
+  const r = e.app.findRecordById("reports", e.request.pathValue("rid"))
+  if (r.getString("project") !== project.id) throw new NotFoundError()
+  const kind = r.getString("kind") || "opm"
+  if (kind !== "opm" && kind !== "fat_finish") throw new NotFoundError()
+  const fsys = e.app.newFilesystem()
+  try {
+    const key = r.baseFilesPath() + "/" + r.getString("file")
+    return fsys.serve(e.response, e.request, key, r.getString("file"))
+  } finally {
+    fsys.close()
+  }
+})
+
+// Link portal klien untuk admin: ambil (buat kalau belum ada) / reset token.
+// portal_token bersifat hidden di API biasa, jadi lewat route ini.
+routerAdd("GET", "/api/briix/projects/{id}/portal-link", (e) => {
+  if (!e.auth || e.auth.getString("role") !== "admin") throw new ForbiddenError("Khusus admin.")
+  const p = e.app.findRecordById("projects", e.request.pathValue("id"))
+  let token = p.getString("portal_token")
+  if (!token) {
+    token = $security.randomStringWithAlphabet(32, "abcdefghijklmnopqrstuvwxyz0123456789")
+    p.set("portal_token", token)
+    e.app.save(p)
+  }
+  return e.json(200, { token })
+})
+routerAdd("POST", "/api/briix/projects/{id}/portal-link/reset", (e) => {
+  if (!e.auth || e.auth.getString("role") !== "admin") throw new ForbiddenError("Khusus admin.")
+  const p = e.app.findRecordById("projects", e.request.pathValue("id"))
+  const token = $security.randomStringWithAlphabet(32, "abcdefghijklmnopqrstuvwxyz0123456789")
+  p.set("portal_token", token)
+  e.app.save(p)
+  return e.json(200, { token })
 })

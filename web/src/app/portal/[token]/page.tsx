@@ -10,13 +10,16 @@ type PortalData = {
   project: OpmReportProject & { code: string; name: string; status: string; target_date?: string };
   opm: { ports_total: number; ports_approved: number; fats: PortalFat[] };
   packages: { type: string; name: string; unit: string; volume: number; approved_qty: number }[];
+  reports: { id: string; kind: string; label: string; created: string }[];
   generated_at: string;
 };
+const UNIT_LABEL: Record<string, string> = { m: "m", tiang: "tiang", titik: "titik", port: "port", fat: "FAT", core: "core", paket: "paket" };
+const KIND_LABEL: Record<string, string> = { opm: "Laporan Uji OPM", fat_finish: "Rekap Foto Finish FAT" };
 
 const STAGE_LABEL: Record<string, string> = {
   draft: "Draf", survei: "Survei", desain: "Desain", berjalan: "Berjalan",
   rfs: "RFS", atp: "ATP", revisi_atp: "Revisi ATP", lunas: "Lunas",
-  selesai: "Selesai", ditahan: "Ditahan",
+  selesai: "Selesai", ditahan: "Ditahan", dibatalkan: "Dibatalkan",
 };
 
 export default function PortalKlienPage() {
@@ -110,8 +113,30 @@ export default function PortalKlienPage() {
             disabled={downloading}
             className="self-start mt-1 px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white disabled:opacity-50"
           >
-            {downloading ? "Membuat PDF..." : "⬇ Unduh laporan PDF"}
+            {downloading ? "Membuat PDF..." : "⬇ Ringkasan nilai OPM (PDF, tanpa foto)"}
           </button>
+        </section>
+
+        <section className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
+          <h2 className="text-sm font-semibold">Laporan resmi (PDF dengan foto)</h2>
+          {(!data.reports || data.reports.length === 0) && (
+            <p className="text-xs text-muted">Belum ada laporan yang diterbitkan. Laporan akan muncul di sini setelah dibuat oleh BRIIX OSP.</p>
+          )}
+          {data.reports?.map((r) => (
+            <a
+              key={r.id}
+              href={`${PB_URL}/api/briix/portal/${token}/report/${r.id}`}
+              className="flex items-center justify-between gap-2 text-sm border-t border-border pt-2 first:border-0 first:pt-0"
+            >
+              <span className="min-w-0">
+                <span className="block font-semibold truncate">{r.label || KIND_LABEL[r.kind] || "Laporan"}</span>
+                <span className="block text-xs text-muted">
+                  {KIND_LABEL[r.kind] || r.kind} · {new Date(r.created).toLocaleDateString("id-ID")}
+                </span>
+              </span>
+              <span className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink text-white shrink-0">⬇ Unduh</span>
+            </a>
+          ))}
         </section>
 
         {data.packages.length > 0 && (
@@ -121,7 +146,7 @@ export default function PortalKlienPage() {
               <div key={i} className="flex items-center justify-between text-sm border-t border-border pt-2 first:border-0 first:pt-0">
                 <span>{p.name}</span>
                 <span className="font-mono text-muted">
-                  {p.approved_qty}/{p.volume} {p.unit}
+                  {p.approved_qty}/{p.volume} {UNIT_LABEL[p.unit] || p.unit}
                 </span>
               </div>
             ))}

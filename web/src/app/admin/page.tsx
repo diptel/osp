@@ -52,6 +52,31 @@ export default function AdminDashboard() {
   // membisukan dialog bawaan setelah beberapa kali, jadi klik seolah tidak
   // merespons sama sekali).
   const [ask, setAsk] = useState<{ id: string; kind: "arsip" | "batal"; reason: string } | null>(null);
+  const [portal, setPortal] = useState<{ id: string; url: string; copied: boolean } | null>(null);
+
+  function portalUrl(token: string) {
+    return `${window.location.origin}/app/portal/${token}/`;
+  }
+  async function showPortal(id: string, reset = false) {
+    setBusyId(id);
+    try {
+      const r = (await pb().send(`/api/briix/projects/${id}/portal-link${reset ? "/reset" : ""}`, { method: reset ? "POST" : "GET" })) as { token: string };
+      setPortal({ id, url: portalUrl(r.token), copied: false });
+    } catch (e) {
+      setErr("Gagal mengambil link portal: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setBusyId("");
+    }
+  }
+  async function copyPortal() {
+    if (!portal) return;
+    try {
+      await navigator.clipboard.writeText(portal.url);
+      setPortal({ ...portal, copied: true });
+    } catch {
+      /* fallback: user pilih manual dari input */
+    }
+  }
 
   function load() {
     pb()
@@ -144,6 +169,29 @@ export default function AdminDashboard() {
             {p.status === "dibatalkan" && p.cancel_reason && (
               <p className="text-xs text-warn">Dibatalkan: {p.cancel_reason}</p>
             )}
+            {portal?.id === p.id && (
+              <div className="bg-[#FAFAF8] border border-dashed border-line2 rounded-lg p-2.5 flex flex-col gap-2">
+                <p className="text-xs font-semibold">Link portal klien (tanpa login — siapa pun yang punya link bisa melihat progres & mengunduh laporan)</p>
+                <input readOnly value={portal.url} onFocus={(e) => e.target.select()} className="border border-border rounded-lg px-2 py-1.5 text-xs bg-card font-mono" />
+                <div className="flex gap-2 flex-wrap">
+                  <button onClick={copyPortal} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink text-white">
+                    {portal.copied ? "✓ Tersalin" : "Salin link"}
+                  </button>
+                  <a href={portal.url} target="_blank" rel="noreferrer" className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border">
+                    Buka ↗
+                  </a>
+                  <a href={`https://wa.me/?text=${encodeURIComponent(`Progres proyek ${p.cluster_name || p.name}: ${portal.url}`)}`} target="_blank" rel="noreferrer" className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border">
+                    Kirim via WA
+                  </a>
+                  <button onClick={() => showPortal(p.id, true)} className="text-xs text-warn underline ml-auto" title="Link lama tidak berlaku lagi">
+                    Ganti link
+                  </button>
+                  <button onClick={() => setPortal(null)} className="text-xs text-subtle">
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            )}
             {ask?.id === p.id && (
               <div className="bg-[#FAFAF8] border border-dashed border-line2 rounded-lg p-2.5 flex flex-col gap-2">
                 {ask.kind === "batal" ? (
@@ -191,6 +239,9 @@ export default function AdminDashboard() {
               <Link href={`/admin/proyek/${p.id}/manajemen`} className="text-xs text-accent underline">
                 Manajemen
               </Link>
+              <button onClick={() => showPortal(p.id)} disabled={busyId === p.id} className="text-xs text-accent underline disabled:opacity-50">
+                Link portal klien
+              </button>
               {(p.status === "selesai" || p.status === "dibatalkan") && (
                 <button
                   onClick={() => setAsk({ id: p.id, kind: "arsip", reason: "" })}
