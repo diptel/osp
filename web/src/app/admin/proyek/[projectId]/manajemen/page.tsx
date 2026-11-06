@@ -116,7 +116,9 @@ export default function ManajemenProyekPage() {
       .map((w) => {
         const s = byWorker.get(w.id)!;
         const r = rateOf(w);
-        const cost = s.days * r.daily + s.overtime * r.overtime;
+        // Pegawai bulanan digaji perusahaan — yang dibebankan ke proyek hanya
+        // lemburnya. Freelance: hari × tarif + lembur × tarif lembur.
+        const cost = (w.employment === "bulanan" ? 0 : s.days * r.daily) + s.overtime * r.overtime;
         return { w, days: s.days, overtime: s.overtime, rate: r, cost };
       })
       .sort((a, b) => b.cost - a.cost);
@@ -205,7 +207,7 @@ export default function ManajemenProyekPage() {
           {/* Kartu angka utama */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <Stat label="Nilai opname (disetujui QC)" value={rupiah(revenue)} sub={opname ? `${opname.packages.length} paket` : "—"} />
-            <Stat label="Biaya tenaga kerja" value={rupiah(labor.total)} sub={`${labor.rows.length} pekerja · ${labor.overtimeTotal}× lembur`} />
+            <Stat label="Biaya tenaga kerja (dibayar dari proyek)" value={rupiah(labor.total)} sub={`${labor.rows.length} pekerja · ${labor.overtimeTotal}× lembur · bulanan hanya lembur`} />
             <Stat label="Biaya lain-lain" value={rupiah(expenseTotal)} sub={`${expenses.length} transaksi`} />
             <Stat
               label={margin >= 0 ? "Untung (sementara)" : "Rugi (sementara)"}
@@ -271,7 +273,7 @@ export default function ManajemenProyekPage() {
                     <th className="text-right px-3 py-2">Hari</th>
                     <th className="text-right px-3 py-2">Lembur</th>
                     <th className="text-right px-3 py-2">Tarif/hari</th>
-                    <th className="text-right px-4 py-2">Biaya</th>
+                    <th className="text-right px-4 py-2">Dibayar dari proyek</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -286,7 +288,9 @@ export default function ManajemenProyekPage() {
                       </td>
                       <td className="px-3 py-2 text-right">{r.days}</td>
                       <td className="px-3 py-2 text-right">{r.overtime}×</td>
-                      <td className="px-3 py-2 text-right">{rupiah(r.rate.daily)}</td>
+                      <td className="px-3 py-2 text-right">
+                        {r.w.employment === "bulanan" ? <span className="text-faint text-xs">gaji perusahaan</span> : rupiah(r.rate.daily)}
+                      </td>
                       <td className="px-4 py-2 text-right font-semibold">{rupiah(r.cost)}</td>
                     </tr>
                   ))}

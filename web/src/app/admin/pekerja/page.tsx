@@ -102,7 +102,7 @@ export default function PekerjaPage() {
           </select>
           <input value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} placeholder="Catatan (opsional)" className="border border-border rounded-lg px-3 py-2 text-sm bg-card" />
           <label className="text-xs text-muted flex flex-col gap-1">
-            Tarif per hari (Rp){form.employment === "bulanan" ? " — alokasi gaji per hari kerja" : ""}
+            Tarif per hari (Rp){form.employment === "bulanan" ? " — tidak dihitung ke proyek (gaji perusahaan), boleh kosong" : ""}
             <input type="number" min={0} value={form.daily_rate} onChange={(e) => setForm({ ...form, daily_rate: e.target.value })} className="border border-border rounded-lg px-3 py-2 text-sm bg-card" />
           </label>
           <label className="text-xs text-muted flex flex-col gap-1">

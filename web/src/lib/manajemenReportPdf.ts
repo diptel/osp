@@ -90,7 +90,8 @@ export async function fetchManajemenData(projectId: string, client: Client): Pro
         overtime: s.overtime,
         daily,
         overtimeRate,
-        cost: s.days * daily + s.overtime * overtimeRate,
+        // bulanan: gaji ditanggung perusahaan, proyek hanya bayar lembur
+        cost: (String(w.employment) === "bulanan" ? 0 : s.days * daily) + s.overtime * overtimeRate,
       };
     })
     .sort((a, b) => b.cost - a.cost);
@@ -349,8 +350,8 @@ export function buildManajemenReportPdf(data: ManajemenData, generatedBy: string
   else
     pg.table(
       [{ w: 34 }, { w: 14 }, { w: 10, align: "right" }, { w: 12, align: "right" }, { w: 18, align: "right" }, { w: 18, align: "right" }, { w: 22, align: "right" }],
-      ["Pekerja", "Tipe", "Hari", "Lembur", "Tarif/hari", "Tarif lembur", "Biaya"],
-      data.workers.map((w) => [w.name, w.employment === "bulanan" ? "Bulanan" : "Freelance", String(w.days), `${w.overtime}×`, rp(w.daily), rp(w.overtimeRate), rp(w.cost)]),
+      ["Pekerja", "Tipe", "Hari", "Lembur", "Tarif/hari", "Tarif lembur", "Dibayar proyek"],
+      data.workers.map((w) => [w.name, w.employment === "bulanan" ? "Bulanan" : "Freelance", String(w.days), `${w.overtime}×`, w.employment === "bulanan" ? "gaji perush." : rp(w.daily), rp(w.overtimeRate), rp(w.cost)]),
       { total: ["Total tenaga kerja", "", String(data.workers.reduce((s, w) => s + w.days, 0)), `${data.workers.reduce((s, w) => s + w.overtime, 0)}×`, "", "", rp(data.laborTotal)], zebra: true }
     );
 
@@ -378,7 +379,7 @@ export function buildManajemenReportPdf(data: ManajemenData, generatedBy: string
     { total: [margin >= 0 ? "Untung sementara" : "Rugi sementara", rp(margin)] }
   );
   pg.p(
-    "Catatan: nilai opname dihitung dari volume yang disetujui QC × harga satuan paket, belum tentu sama dengan yang sudah ditagihkan/dibayar klien. Biaya tenaga kerja = hari hadir × tarif/hari + lembur × tarif lembur (tarif khusus proyek menimpa tarif profil).",
+    "Catatan: nilai opname dihitung dari volume yang disetujui QC × harga satuan paket, belum tentu sama dengan yang sudah ditagihkan/dibayar klien. Biaya tenaga kerja yang dibebankan ke proyek: freelance = hari hadir × tarif/hari + lembur × tarif lembur; pegawai bulanan digaji perusahaan sehingga hanya lemburnya yang dihitung (tarif khusus proyek menimpa tarif profil).",
     7.5
   );
 
