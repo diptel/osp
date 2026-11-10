@@ -103,7 +103,9 @@ function rfsChecklist(app, pid) {
 
   const feederNeed = project.getInt("feeder_cores") || 0
   // hanya foto VALID yang dihitung: ada GPS, jarak dalam toleransi (far = false)
-  const okPhoto = (ph) => !ph.getBool("far") && ph.get("distance_m") !== null && ph.get("distance_m") !== undefined
+  // kamera: wajib GPS & dalam toleransi; galeri/tempel (hanya staf yang boleh) dianggap sah
+  const okPhoto = (ph) => ph.getString("source") === "gallery" ||
+    (!ph.getBool("far") && ph.get("distance_m") !== null && ph.get("distance_m") !== undefined)
   const feeder = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_feeder'", "seq", 0, 0, { p: pid })
     .filter(okPhoto)
     .map((ph) => ({ id: ph.id, seq: ph.getInt("seq"), file: ph.getString("file") }))

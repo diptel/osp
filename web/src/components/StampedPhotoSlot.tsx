@@ -16,6 +16,7 @@ export type StampedPhoto = RecordModel & {
   accuracy_m?: number;
   taken_at?: string;
   place?: string;
+  source?: string;
   pos?: { lat: number; lon: number };
 };
 
@@ -24,6 +25,19 @@ export type PhotoCheck = { ok: boolean; label: string };
 /** Validasi foto berstempel: GPS ada, jarak ke titik ≤ toleransi, (nilai dBm terisi). */
 export function validatePhoto(p: StampedPhoto, toleranceM: number, withDbm: boolean, minDbm?: number | null): PhotoCheck[] {
   const hasPos = !!(p.pos && (p.pos.lat !== 0 || p.pos.lon !== 0));
+  if (p.source === "gallery") {
+    // diunggah admin dari file/tempel — GPS tidak diwajibkan, tanggung jawab admin
+    const checks: PhotoCheck[] = [{ ok: true, label: "Diunggah admin dari file/tempel (tanpa cek GPS)" }];
+    if (withDbm) {
+      const has = p.value_dbm != null && p.value_dbm !== 0;
+      checks.push({ ok: has, label: has ? `Nilai redaman ${p.value_dbm} dBm` : "Nilai dBm belum diisi (atau 0)" });
+      if (has && minDbm != null) {
+        const ok = (p.value_dbm as number) >= minDbm;
+        checks.push({ ok, label: ok ? `Memenuhi batas proyek (≥ ${minDbm} dBm)` : `Di bawah batas proyek ${minDbm} dBm — perlu perbaikan` });
+      }
+    }
+    return checks;
+  }
   const checks: PhotoCheck[] = [
     { ok: hasPos, label: hasPos ? `Posisi GPS tersimpan (±${Math.round(p.accuracy_m || 0)} m)` : "Posisi GPS tidak tersimpan" },
     {
@@ -101,27 +115,31 @@ export function StampedPhotoSlot({
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
   const [dbm, setDbm] = useState("");
-  const [pending, setPending] = useState<File | null>(null);
+  const [pending, setPending] = useState<{ file: File | Blob; source: "camera" | "gallery" } | null>(null);
   const [ocrNote, setOcrNote] = useState("");
   const [delAsk, setDelAsk] = useState(false);
   const camRef = useRef<HTMLInputElement>(null);
   const galRef = useRef<HTMLInputElement>(null);
   const id = `${purpose}-${seq ?? 0}-${assetId}`;
 
-  async function doUpload(file: File, source: "camera" | "gallery", dbmValue?: number) {
+  async function doUpload(file: File | Blob, source: "camera" | "gallery", dbmValue?: number) {
     setErr("");
-    setBusy("Mengambil posisi GPS...");
+    setBusy(source === "camera" ? "Mengambil posisi GPS..." : "Menyiapkan...");
     try {
-      const pos = await getPosition();
-      setBusy("Mencari nama lokasi...");
-      const place = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
-      setBusy("Menempel stempel GPS...");
+      // kamera: GPS wajib; file/tempel (admin): GPS opsional, stempel tanpa koordinat kalau tidak ada
+      let pos: GeolocationPosition | null = null;
+      if (source === "camera") pos = await getPosition();
+      else pos = await getPosition().catch(() => null);
+      let place = "";
+      if (pos) {
+        setBusy("Mencari nama lokasi...");
+        place = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
+      }
+      setBusy("Menempel stempel...");
       const now = new Date();
-      const lines = [
-        `${stampTitle ? stampTitle + " · " : ""}${label}`,
-        fmtStampTime(now),
-        `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}  ±${Math.round(pos.coords.accuracy || 0)} m`,
-      ];
+      const lines = [`${stampTitle ? stampTitle + " · " : ""}${label}`, fmtStampTime(now)];
+      if (pos) lines.push(`${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}  ±${Math.round(pos.coords.accuracy || 0)} m`);
+      else lines.push("diunggah admin dari file");
       if (place) lines.push(place);
       if (dbmValue != null && !Number.isNaN(dbmValue)) lines.push(`OPM ${dbmValue} dBm`);
       const stamped = await stampPhoto(file, lines);
@@ -138,8 +156,10 @@ export function StampedPhotoSlot({
       if (seq != null) form.append("seq", String(seq));
       if (dbmValue != null && !Number.isNaN(dbmValue)) form.append("value_dbm", String(dbmValue));
       form.append("taken_at", now.toISOString());
-      form.append("pos", JSON.stringify({ lon: pos.coords.longitude, lat: pos.coords.latitude }));
-      form.append("accuracy_m", String(Math.round(pos.coords.accuracy || 0)));
+      if (pos) {
+        form.append("pos", JSON.stringify({ lon: pos.coords.longitude, lat: pos.coords.latitude }));
+        form.append("accuracy_m", String(Math.round(pos.coords.accuracy || 0)));
+      }
       if (place) form.append("place", place);
       form.append("phash", phash);
       form.append("uploaded_by", u?.id || "");
@@ -158,10 +178,31 @@ export function StampedPhotoSlot({
   function onPick(e: React.ChangeEvent<HTMLInputElement>, source: "camera" | "gallery") {
     const f = e.target.files?.[0];
     e.target.value = "";
-    if (!f) return;
+    if (f) handleFile(f, source);
+  }
+
+  async function pasteFromClipboard() {
+    setErr("");
+    try {
+      const items = await navigator.clipboard.read();
+      for (const it of items) {
+        const type = it.types.find((t) => t.startsWith("image/"));
+        if (type) {
+          const blob = await it.getType(type);
+          handleFile(blob, "gallery");
+          return;
+        }
+      }
+      setErr("Clipboard tidak berisi gambar. Salin gambar dulu (Ctrl+C), lalu klik Tempel.");
+    } catch {
+      setErr("Tidak bisa membaca clipboard — izinkan akses clipboard di browser, atau pakai tombol File.");
+    }
+  }
+
+  function handleFile(f: File | Blob, source: "camera" | "gallery") {
     if (withDbm) {
       // baca angka layar OPM dari foto (OCR), isi otomatis, teknisi memastikan
-      setPending(f);
+      setPending({ file: f, source });
       setDbm("");
       setOcrNote("Membaca angka layar OPM dari foto...");
       ocrDbmFromPhoto(f).then((v) => {
@@ -247,7 +288,7 @@ export function StampedPhotoSlot({
               className="border border-border rounded-lg px-2 py-1.5 text-sm bg-card w-40"
             />
             <button
-              onClick={() => doUpload(pending, "camera", Number(dbm))}
+              onClick={() => doUpload(pending.file, pending.source, Number(dbm))}
               disabled={!dbm || busy !== ""}
               className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink text-white disabled:opacity-50"
             >
@@ -270,6 +311,9 @@ export function StampedPhotoSlot({
               <label htmlFor={`gal-${id}`} className={`cursor-pointer text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border ${busy ? "opacity-50 pointer-events-none" : ""}`}>
                 🖼️ File
               </label>
+              <button type="button" onClick={pasteFromClipboard} disabled={busy !== ""} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border disabled:opacity-50" title="Tempel gambar dari clipboard">
+                📋 Tempel
+              </button>
             </>
           )}
           {photo && canDelete && (
