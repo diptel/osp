@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
 import { dhash } from "@/lib/dhash";
 import { stampPhoto, fmtStampTime, reverseGeocode } from "@/lib/stampPhoto";
+import { ocrDbmFromPhoto } from "@/lib/ocrDbm";
 import type { RecordModel } from "pocketbase";
 
 export type StampedPhoto = RecordModel & {
@@ -101,6 +102,7 @@ export function StampedPhotoSlot({
   const [err, setErr] = useState("");
   const [dbm, setDbm] = useState("");
   const [pending, setPending] = useState<File | null>(null);
+  const [ocrNote, setOcrNote] = useState("");
   const [delAsk, setDelAsk] = useState(false);
   const camRef = useRef<HTMLInputElement>(null);
   const galRef = useRef<HTMLInputElement>(null);
@@ -144,6 +146,7 @@ export function StampedPhotoSlot({
       await pb().collection("photos").create(form);
       setPending(null);
       setDbm("");
+      setOcrNote("");
       onChange();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Gagal mengunggah foto.");
@@ -157,8 +160,18 @@ export function StampedPhotoSlot({
     e.target.value = "";
     if (!f) return;
     if (withDbm) {
-      // minta nilai dBm dulu, baru unggah
+      // baca angka layar OPM dari foto (OCR), isi otomatis, teknisi memastikan
       setPending(f);
+      setDbm("");
+      setOcrNote("Membaca angka layar OPM dari foto...");
+      ocrDbmFromPhoto(f).then((v) => {
+        if (v != null) {
+          setDbm(String(v));
+          setOcrNote(`Terbaca dari foto: ${v} dBm — pastikan sama dengan layar alat, lalu Simpan.`);
+        } else {
+          setOcrNote("Angka layar tidak terbaca otomatis — ketik nilai dBm sesuai layar.");
+        }
+      });
       return;
     }
     doUpload(f, source);
@@ -220,6 +233,7 @@ export function StampedPhotoSlot({
           <p className="text-xs text-faint">Belum ada foto. Ambil dari kamera di lokasi — posisi GPS ikut tersimpan.</p>
         )}
 
+        {pending && ocrNote && <p className="text-xs text-subtle">{ocrNote}</p>}
         {pending && (
           <div className="flex items-center gap-2">
             <input
@@ -239,7 +253,7 @@ export function StampedPhotoSlot({
             >
               Simpan
             </button>
-            <button onClick={() => setPending(null)} className="text-xs text-subtle">
+            <button onClick={() => { setPending(null); setOcrNote(""); }} className="text-xs text-subtle">
               Batal
             </button>
           </div>

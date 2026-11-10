@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
+import { ocrDbmFromPhoto } from "@/lib/ocrDbm";
 import { dhash, distanceM, getPosition, bestPos } from "@/lib/dhash";
 import type { RecordModel } from "pocketbase";
 
@@ -30,6 +31,7 @@ export default function UjiOpmPage() {
   const [tests, setTests] = useState<OpmTest[]>([]);
   const [port, setPort] = useState<number | null>(null);
   const [dbm, setDbm] = useState("");
+  const [ocrNote, setOcrNote] = useState("");
   const [preview, setPreview] = useState<string>("");
   const [checks, setChecks] = useState<{ okGps: boolean | null; distance: number | null; note: string }>({
     okGps: null,
@@ -75,6 +77,16 @@ export default function UjiOpmPage() {
     setErr("");
     setFile(f);
     setPreview(URL.createObjectURL(f));
+    // baca angka layar OPM dari foto (OCR) — isi otomatis, teknisi memastikan
+    setOcrNote("Membaca angka layar OPM dari foto...");
+    ocrDbmFromPhoto(f).then((v) => {
+      if (v != null) {
+        setDbm(String(v));
+        setOcrNote(`Terbaca dari foto: ${v} dBm — pastikan sama dengan layar alat.`);
+      } else {
+        setOcrNote("Angka layar tidak terbaca otomatis — ketik sesuai layar.");
+      }
+    });
     try {
       const h = await dhash(f);
       setPhash(h);
@@ -297,6 +309,7 @@ export default function UjiOpmPage() {
             </div>
           </div>
         </div>
+        {ocrNote && file && <p className="text-xs text-subtle">{ocrNote}</p>}
         {project?.opm_limit_enabled && project.opm_min_dbm != null && (
           <p className={`text-xs rounded-lg px-2.5 py-1.5 ${dbm !== "" && Number(dbm) < project.opm_min_dbm ? "bg-warnbg text-warn font-semibold" : "text-faint"}`}>
             {dbm !== "" && Number(dbm) < project.opm_min_dbm
