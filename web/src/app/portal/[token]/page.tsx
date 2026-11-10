@@ -14,7 +14,7 @@ type PortalData = {
   generated_at: string;
 };
 const UNIT_LABEL: Record<string, string> = { m: "m", tiang: "tiang", titik: "titik", port: "port", fat: "FAT", core: "core", paket: "paket" };
-const KIND_LABEL: Record<string, string> = { opm: "Laporan Uji OPM", fat_finish: "Rekap Foto Finish FAT" };
+const KIND_LABEL: Record<string, string> = { opm: "Laporan Uji OPM", fat_finish: "Rekap Foto Finish FAT", fdt_finish: "Rekap Foto Finish FDT" };
 
 const STAGE_LABEL: Record<string, string> = {
   draft: "Draf", survei: "Survei", desain: "Desain", berjalan: "Berjalan",

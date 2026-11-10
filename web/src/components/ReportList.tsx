@@ -12,6 +12,7 @@ const KIND_LABEL: Record<string, string> = {
   fat_finish: "Rekap Finish FAT",
   manajemen: "Laporan Manajemen Proyek",
   atp_form: "Form ATP E2E",
+  fdt_finish: "Rekap Finish FDT",
 };
 
 /**
@@ -26,7 +27,7 @@ export function ReportList({
   canGenerate = true,
 }: {
   projectId: string;
-  kind?: "opm" | "fat_finish" | "manajemen" | "atp_form";
+  kind?: "opm" | "fat_finish" | "manajemen" | "atp_form" | "fdt_finish";
   canDelete?: boolean;
   canGenerate?: boolean;
 }) {

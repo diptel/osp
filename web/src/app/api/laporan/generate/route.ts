@@ -19,6 +19,8 @@ import {
   fetchOpmReportData,
   buildFatFinishReportPdf,
   fetchFatFinishReportData,
+  fetchFdtFinishReportData,
+  buildFdtFinishReportPdf,
 } from "@/lib/opmReportPdf";
 import type { AppUser } from "@/lib/pocketbase";
 import { fetchManajemenData, buildManajemenReportPdf } from "@/lib/manajemenReportPdf";
@@ -33,6 +35,7 @@ const KIND_LABEL: Record<string, string> = {
   fat_finish: "Rekap Finish FAT",
   manajemen: "Laporan Manajemen Proyek",
   atp_form: "Form ATP E2E",
+  fdt_finish: "Rekap Finish FDT",
 };
 
 export async function POST(req: NextRequest) {
@@ -48,7 +51,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Body request tidak valid." }, { status: 400 });
   }
   const { projectId } = body;
-  const KINDS = ["opm", "fat_finish", "manajemen", "atp_form"] as const;
+  const KINDS = ["opm", "fat_finish", "manajemen", "atp_form", "fdt_finish"] as const;
   const kind = (KINDS as readonly string[]).includes(body.kind || "") ? (body.kind as (typeof KINDS)[number]) : "opm";
   if (!projectId) {
     return NextResponse.json({ error: "projectId wajib diisi." }, { status: 400 });
@@ -73,7 +76,16 @@ export async function POST(req: NextRequest) {
     let label: string;
     let clusterName = "";
 
-    if (kind === "atp_form") {
+    if (kind === "fdt_finish") {
+      const data = await fetchFdtFinishReportData(projectId, client);
+      if (!data.finish && data.feeder.length === 0) {
+        return NextResponse.json({ error: "Belum ada foto Finish FDT yang diunggah." }, { status: 400 });
+      }
+      const doc = await buildFdtFinishReportPdf({ data, authToken: liveToken });
+      bytes = doc.output("arraybuffer") as ArrayBuffer;
+      label = `${KIND_LABEL[kind]} — ${stamp}`;
+      clusterName = data.clusterName;
+    } else if (kind === "atp_form") {
       const data = await fetchAtpFormData(projectId, client);
       if (data.fats.length === 0) {
         return NextResponse.json({ error: "Proyek ini belum punya FAT di data aset." }, { status: 400 });

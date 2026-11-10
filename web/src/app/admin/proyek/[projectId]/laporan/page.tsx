@@ -10,7 +10,7 @@ type Project = RecordModel & { cluster_name: string; cluster_id: string };
 export default function AdminLaporanPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
-  const [tab, setTab] = useState<"opm" | "fat_finish" | "atp_form">("opm");
+  const [tab, setTab] = useState<"opm" | "rfs" | "atp_form">("opm");
 
   useEffect(() => {
     pb().collection("projects").getOne<Project>(String(projectId)).then(setProject).catch(() => void 0);
@@ -33,12 +33,12 @@ export default function AdminLaporanPage() {
           Laporan OPM
         </button>
         <button
-          onClick={() => setTab("fat_finish")}
+          onClick={() => setTab("rfs")}
           className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
-            tab === "fat_finish" ? "bg-ink text-white border-ink" : "border-border text-subtle"
+            tab === "rfs" ? "bg-ink text-white border-ink" : "border-border text-subtle"
           }`}
         >
-          Rekap Finish FAT
+          Laporan RFS
         </button>
         <button
           onClick={() => setTab("atp_form")}
@@ -50,7 +50,22 @@ export default function AdminLaporanPage() {
         </button>
       </div>
       <div className="bg-card border border-border rounded-xl p-4">
-        <ReportList projectId={String(projectId)} kind={tab} canDelete />
+        {tab === "rfs" ? (
+          <div className="flex flex-col gap-5">
+            <section className="flex flex-col gap-2">
+              <h2 className="text-sm font-semibold">Rekap Finish FAT</h2>
+              <p className="text-xs text-muted">Foto FAT yang sudah selesai & semua port-nya terverifikasi, 4 FAT per halaman.</p>
+              <ReportList projectId={String(projectId)} kind="fat_finish" canDelete />
+            </section>
+            <section className="flex flex-col gap-2 border-t border-border pt-4">
+              <h2 className="text-sm font-semibold">Rekap Finish FDT</h2>
+              <p className="text-xs text-muted">Foto core feeder masuk FDT, foto akhir FDT luar + layar OPM 1 port, dengan stempel GPS.</p>
+              <ReportList projectId={String(projectId)} kind="fdt_finish" canDelete />
+            </section>
+          </div>
+        ) : (
+          <ReportList projectId={String(projectId)} kind={tab} canDelete />
+        )}
       </div>
     </div>
   );

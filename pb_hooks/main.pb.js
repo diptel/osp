@@ -249,7 +249,7 @@ routerAdd("GET", "/api/briix/portal/{token}", (e) => {
 
   // Laporan PDF tersimpan yang boleh dilihat klien (OPM & rekap Finish FAT;
   // laporan manajemen internal TIDAK ikut)
-  const reports = e.app.findRecordsByFilter("reports", "project = {:p} && (kind = 'opm' || kind = 'fat_finish' || kind = '')", "-created", 0, 0, { p: pid })
+  const reports = e.app.findRecordsByFilter("reports", "project = {:p} && (kind = 'opm' || kind = 'fat_finish' || kind = 'fdt_finish' || kind = '')", "-created", 0, 0, { p: pid })
     .map((r) => ({ id: r.id, kind: r.getString("kind") || "opm", label: r.getString("label"), created: r.getString("created") }))
 
   return e.json(200, {
@@ -277,7 +277,7 @@ routerAdd("GET", "/api/briix/portal/{token}/report/{rid}", (e) => {
   const r = e.app.findRecordById("reports", e.request.pathValue("rid"))
   if (r.getString("project") !== project.id) throw new NotFoundError()
   const kind = r.getString("kind") || "opm"
-  if (kind !== "opm" && kind !== "fat_finish") throw new NotFoundError()
+  if (kind !== "opm" && kind !== "fat_finish" && kind !== "fdt_finish") throw new NotFoundError()
   const fsys = e.app.newFilesystem()
   try {
     const key = r.baseFilesPath() + "/" + r.getString("file")

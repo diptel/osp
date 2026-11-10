@@ -600,3 +600,145 @@ export async function fetchFatFinishReportData(projectId: string, pbInstance?: R
     clusterName: project.cluster_name,
   };
 }
+
+// ============================================================
+// Rekap foto Finish FDT: core feeder masuk FDT (N foto), foto akhir FDT
+// luar + layar OPM 1 port (nilai dBm). Satu/dua halaman.
+// ============================================================
+export type FdtFinishData = {
+  project: OpmReportProject;
+  fdtCode: string;
+  feederCores: number;
+  feeder: { seq: number; url: string; place?: string; takenAt?: string }[];
+  finish: { url: string; dbm?: number; place?: string; takenAt?: string } | null;
+  inputDbm?: number;
+  clientLogoUrl: string | null;
+  clusterName: string;
+};
+
+export async function fetchFdtFinishReportData(projectId: string, pbInstance?: ReturnType<typeof pb>): Promise<FdtFinishData> {
+  const client = pbInstance || pb();
+  const project = await client.collection("projects").getOne<
+    RecordModel & {
+      cluster_name: string; cluster_id: string; region: string; olt: string; fdt_input_dbm?: number; feeder_cores?: number;
+      expand?: { client?: RecordModel & { logo?: string } };
+    }
+  >(projectId, { expand: "client" });
+  let fdtCode = "";
+  try {
+    const fdt = await client.collection("assets").getFirstListItem<RecordModel & { code: string }>(`project = "${projectId}" && (kind = "fdt" || kind = "odc")`);
+    fdtCode = fdt.code;
+  } catch { /* tidak ada */ }
+  const photos = await client.collection("photos").getFullList<
+    RecordModel & { file: string; purpose: string; seq?: number; value_dbm?: number; place?: string; taken_at?: string; far?: boolean; source?: string }
+  >({ filter: `project = "${projectId}" && (purpose = "fdt_feeder" || purpose = "fdt_finish")`, sort: "seq,-created" });
+  const ok = (p: (typeof photos)[number]) => p.source === "gallery" || !p.far;
+  const feederMap = new Map<number, (typeof photos)[number]>();
+  for (const p of photos) if (p.purpose === "fdt_feeder" && ok(p) && p.seq != null && !feederMap.has(p.seq)) feederMap.set(p.seq, p);
+  const finishPhoto = photos.find((p) => p.purpose === "fdt_finish" && ok(p)) || photos.find((p) => p.purpose === "fdt_finish") || null;
+  return {
+    project: { cluster_name: project.cluster_name, cluster_id: project.cluster_id, region: project.region, olt: project.olt, fdt_input_dbm: project.fdt_input_dbm },
+    fdtCode,
+    feederCores: project.feeder_cores || feederMap.size,
+    feeder: Array.from(feederMap.values()).sort((a, b) => (a.seq || 0) - (b.seq || 0)).map((p) => ({ seq: p.seq || 0, url: urlFor(client, p, p.file, "1200x0"), place: p.place, takenAt: p.taken_at })),
+    finish: finishPhoto ? { url: urlFor(client, finishPhoto, finishPhoto.file, "1200x0"), dbm: finishPhoto.value_dbm, place: finishPhoto.place, takenAt: finishPhoto.taken_at } : null,
+    inputDbm: project.fdt_input_dbm,
+    clientLogoUrl: project.expand?.client?.logo ? urlFor(client, project.expand.client, project.expand.client.logo) : null,
+    clusterName: project.cluster_name,
+  };
+}
+
+export async function buildFdtFinishReportPdf(opts: { data: FdtFinishData; authToken?: string; isCancelled?: () => boolean }): Promise<jsPDF> {
+  const d = opts.data;
+  const clientLogo = d.clientLogoUrl ? await loadImageAsJpegDataUrl(d.clientLogoUrl, opts.authToken) : null;
+  const doc = new jsPDF({ unit: "pt", format: "letter" });
+  const header = () =>
+    drawHeader(doc, "Rekap Foto Finish FDT", { region: d.project.region, olt: d.project.olt, cluster_name: d.project.cluster_name, cluster_id: d.project.cluster_id }, clientLogo);
+  header();
+  const top = 110;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.text(`FDT ${d.fdtCode || "-"}`, M, top);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(90, 90, 90);
+  const info = [
+    `Core feeder masuk FDT: ${d.feeder.length}/${d.feederCores || "-"}`,
+    d.inputDbm != null ? `Input FDT terukur: ${d.inputDbm} dBm` : "",
+    d.finish?.dbm != null ? `Cek redaman 1 port FDT: ${d.finish.dbm} dBm` : "Cek redaman 1 port FDT: -",
+  ].filter(Boolean);
+  doc.text(info.join("   ·   "), M, top + 14);
+  doc.setTextColor(0, 0, 0);
+
+  // Foto akhir FDT luar (besar) di kiri, keterangan di kanan
+  let y = top + 28;
+  const bigW = (W - 2 * M) * 0.6;
+  const bigH = 250;
+  doc.setDrawColor(20, 20, 20);
+  doc.setLineWidth(1);
+  doc.rect(M, y, W - 2 * M, bigH + 28);
+  doc.setFillColor(245, 245, 245);
+  doc.rect(M, y, W - 2 * M, 22, "F");
+  doc.line(M, y + 22, W - M, y + 22);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text("Foto akhir FDT (luar) + layar OPM 1 port", M + 8, y + 15);
+  const img = d.finish ? await loadImageAsJpegDataUrl(d.finish.url, opts.authToken) : null;
+  drawPhotoFit(doc, img, M + 6, y + 28, bigW - 12, bigH - 6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  const kx = M + bigW + 6;
+  let ky = y + 44;
+  const line = (t: string, bold = false) => {
+    doc.setFont("helvetica", bold ? "bold" : "normal");
+    const ls = doc.splitTextToSize(t, W - M - kx - 6) as string[];
+    doc.text(ls, kx, ky);
+    ky += ls.length * 11 + 4;
+  };
+  if (d.finish) {
+    line(`Redaman: ${d.finish.dbm != null ? d.finish.dbm + " dBm" : "-"}`, true);
+    if (d.finish.takenAt) line(`Waktu: ${new Date(d.finish.takenAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}`);
+    if (d.finish.place) line(`Lokasi: ${d.finish.place}`);
+  } else line("Belum ada foto akhir FDT.");
+  y += bigH + 28 + 14;
+
+  // Grid foto core feeder: 3 kolom
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(`Core feeder masuk FDT (${d.feeder.length})`, M, y + 10);
+  y += 18;
+  const cols = 3;
+  const gap = 10;
+  const cw = (W - 2 * M - gap * (cols - 1)) / cols;
+  const ch = 150;
+  for (let i = 0; i < d.feeder.length; i++) {
+    if (opts.isCancelled?.()) throw new ReportCancelled();
+    const col = i % cols;
+    if (col === 0 && y + ch + 22 > H - M) {
+      doc.addPage();
+      header();
+      y = top;
+    }
+    const x = M + col * (cw + gap);
+    const f = d.feeder[i];
+    doc.setDrawColor(20, 20, 20);
+    doc.setLineWidth(0.8);
+    doc.rect(x, y, cw, ch + 22);
+    doc.setFillColor(245, 245, 245);
+    doc.rect(x, y, cw, 18, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text(`Core feeder #${f.seq}`, x + 6, y + 12.5);
+    const im = await loadImageAsJpegDataUrl(f.url, opts.authToken);
+    drawPhotoFit(doc, im, x + 4, y + 22, cw - 8, ch - 4);
+    if (col === cols - 1 || i === d.feeder.length - 1) y += ch + 22 + gap;
+  }
+  if (d.feeder.length === 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(120, 120, 120);
+    doc.text("Belum ada foto core feeder.", M, y + 12);
+    doc.setTextColor(0, 0, 0);
+  }
+  return doc;
+}
