@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
 import { ocrDbmFromPhoto } from "@/lib/ocrDbm";
+import { stampPhoto, fmtStampTime, reverseGeocode } from "@/lib/stampPhoto";
 import { dhash, distanceM, getPosition, bestPos } from "@/lib/dhash";
 import type { RecordModel } from "pocketbase";
 
@@ -32,6 +33,7 @@ export default function UjiOpmPage() {
   const [port, setPort] = useState<number | null>(null);
   const [dbm, setDbm] = useState("");
   const [ocrNote, setOcrNote] = useState("");
+  const [place, setPlace] = useState("");
   const [preview, setPreview] = useState<string>("");
   const [checks, setChecks] = useState<{ okGps: boolean | null; distance: number | null; note: string }>({
     okGps: null,
@@ -105,6 +107,7 @@ export default function UjiOpmPage() {
         setChecks({ okGps: null, distance: null, note: "Titik belum punya koordinat as-built/desain." });
       }
       (window as unknown as { __opmPos?: GeolocationPosition }).__opmPos = pos;
+      reverseGeocode(pos.coords.latitude, pos.coords.longitude).then(setPlace);
     } catch {
       setChecks({ okGps: null, distance: null, note: "Gagal membaca lokasi GPS." });
     }
@@ -117,18 +120,27 @@ export default function UjiOpmPage() {
     try {
       const u = currentUser();
       const pos = (window as unknown as { __opmPos?: GeolocationPosition }).__opmPos;
+      // stempel ke foto: proyek/FAT/port, waktu, koordinat, lokasi, nilai OPM
+      const now = new Date();
+      const lines = [`${project?.cluster_id || ""} ${fat?.code || ""} · Port ${port}`.trim(), fmtStampTime(now)];
+      if (pos) lines.push(`${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}  ±${Math.round(pos.coords.accuracy || 0)} m`);
+      if (place) lines.push(place);
+      lines.push(`OPM ${Number(dbm)} dBm`);
+      const stamped = await stampPhoto(file, lines);
+      const stampedHash = await dhash(stamped).catch(() => phash);
       const photoForm = new FormData();
       photoForm.append("project", projectId);
       photoForm.append("asset", fatId);
-      photoForm.append("file", file);
+      photoForm.append("file", stamped, `port-${port}-${Date.now()}.jpg`);
       photoForm.append("label", `Port ${port}`);
-      photoForm.append("taken_at", new Date().toISOString());
+      photoForm.append("taken_at", now.toISOString());
       if (pos) {
         photoForm.append("pos", JSON.stringify({ lon: pos.coords.longitude, lat: pos.coords.latitude }));
         photoForm.append("accuracy_m", String(pos.coords.accuracy || 0));
       }
+      if (place) photoForm.append("place", place);
       photoForm.append("source", "camera");
-      photoForm.append("phash", phash);
+      photoForm.append("phash", stampedHash);
       if (checks.distance != null) photoForm.append("distance_m", String(checks.distance));
       photoForm.append("far", String(checks.okGps === false));
       photoForm.append("uploaded_by", u?.id || "");
