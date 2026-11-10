@@ -22,6 +22,7 @@ import {
 } from "@/lib/opmReportPdf";
 import type { AppUser } from "@/lib/pocketbase";
 import { fetchManajemenData, buildManajemenReportPdf } from "@/lib/manajemenReportPdf";
+import { fetchAtpFormData, buildAtpFormPdf } from "@/lib/atpFormPdf";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,7 @@ const KIND_LABEL: Record<string, string> = {
   opm: "Laporan OPM",
   fat_finish: "Rekap Finish FAT",
   manajemen: "Laporan Manajemen Proyek",
+  atp_form: "Form ATP E2E",
 };
 
 export async function POST(req: NextRequest) {
@@ -46,7 +48,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Body request tidak valid." }, { status: 400 });
   }
   const { projectId } = body;
-  const kind = body.kind === "fat_finish" ? "fat_finish" : body.kind === "manajemen" ? "manajemen" : "opm";
+  const KINDS = ["opm", "fat_finish", "manajemen", "atp_form"] as const;
+  const kind = (KINDS as readonly string[]).includes(body.kind || "") ? (body.kind as (typeof KINDS)[number]) : "opm";
   if (!projectId) {
     return NextResponse.json({ error: "projectId wajib diisi." }, { status: 400 });
   }
@@ -70,7 +73,16 @@ export async function POST(req: NextRequest) {
     let label: string;
     let clusterName = "";
 
-    if (kind === "manajemen") {
+    if (kind === "atp_form") {
+      const data = await fetchAtpFormData(projectId, client);
+      if (data.fats.length === 0) {
+        return NextResponse.json({ error: "Proyek ini belum punya FAT di data aset." }, { status: 400 });
+      }
+      const doc = await buildAtpFormPdf(data, liveToken);
+      bytes = doc.output("arraybuffer") as ArrayBuffer;
+      label = `${KIND_LABEL[kind]} — ${data.fats.length} FAT — ${stamp}`;
+      clusterName = data.cluster_name;
+    } else if (kind === "manajemen") {
       const data = await fetchManajemenData(projectId, client);
       const doc = buildManajemenReportPdf(data, user.name || user.email || "admin");
       bytes = doc.output("arraybuffer") as ArrayBuffer;

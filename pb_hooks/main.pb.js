@@ -164,6 +164,37 @@ routerAdd("GET", "/api/briix/projects/{id}/progress", (e) => {
 })
 
 // ============================================================
+// FINISH RFS → ATP
+// GET  /api/briix/projects/{id}/rfs-status    checklist kelengkapan (anggota/staf)
+// POST /api/briix/projects/{id}/rfs-complete  pindah ke tahap ATP kalau lengkap
+//                                              (admin, atau surveyor anggota)
+// ============================================================
+routerAdd("GET", "/api/briix/projects/{id}/rfs-status", (e) => {
+  if (!e.auth) throw new ForbiddenError("Perlu login.")
+  const pid = e.request.pathValue("id")
+  const role = e.auth.getString("role")
+  const office = role === "admin" || role === "qc" || role === "drafter"
+  if (!office && (e.auth.get("projects") || []).indexOf(pid) < 0) throw new ForbiddenError("Bukan anggota proyek ini.")
+  return e.json(200, require(`${__hooks}/utils.js`).rfsChecklist(e.app, pid))
+})
+
+routerAdd("POST", "/api/briix/projects/{id}/rfs-complete", (e) => {
+  if (!e.auth) throw new ForbiddenError("Perlu login.")
+  const pid = e.request.pathValue("id")
+  const role = e.auth.getString("role")
+  const member = (e.auth.get("projects") || []).indexOf(pid) >= 0
+  if (role !== "admin" && !(role === "surveyor" && member)) throw new ForbiddenError("Hanya admin atau surveyor anggota proyek.")
+  const c = require(`${__hooks}/utils.js`).rfsChecklist(e.app, pid)
+  if (!c.complete) throw new BadRequestError("Checklist Finish RFS belum lengkap.")
+  const project = e.app.findRecordById("projects", pid)
+  const st = project.getString("status")
+  if (["atp", "revisi_atp", "lunas", "selesai"].indexOf(st) >= 0) return e.json(200, { status: st, changed: false })
+  project.set("status", "atp")
+  e.app.save(project)
+  return e.json(200, { status: "atp", changed: true })
+})
+
+// ============================================================
 // PORTAL KLIEN: link tanpa login, hanya data yang sudah disetujui QC
 // GET /api/briix/portal/{token}
 // ============================================================

@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { pb } from "@/lib/pocketbase";
+import { pb, currentUser } from "@/lib/pocketbase";
+import { FdtFinishPanel, RfsChecklist } from "@/components/FdtFinishPanel";
 import type { RecordModel } from "pocketbase";
 
 type Asset = RecordModel & { code: string; line: string; ports?: number };
@@ -14,6 +15,9 @@ export default function FatFinishListPage() {
   const [fats, setFats] = useState<Asset[] | null>(null);
   const [tests, setTests] = useState<OpmTest[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [tab, setTab] = useState<"fat" | "fdt">("fat");
+  const role = currentUser()?.role;
+  const canComplete = role === "admin" || role === "surveyor";
 
   useEffect(() => {
     pb()
@@ -54,13 +58,33 @@ export default function FatFinishListPage() {
           ←
         </Link>
         <div className="min-w-0">
-          <h1 className="font-semibold leading-tight">Foto Finish FAT</h1>
+          <h1 className="font-semibold leading-tight">Finish RFS</h1>
           <p className="text-xs text-line2 mt-0.5">
-            Syarat tambahan setelah RFS — FAT yang 8 port-nya sudah lengkap & terverifikasi QC.
+            Syarat setelah RFS: foto Finish tiap FAT + foto Finish FDT. Lengkap → proyek lanjut ke tahap ATP.
           </p>
         </div>
       </header>
-      <ul className="flex-1 overflow-y-auto flex flex-col gap-2 p-4 min-h-0">
+      <div className="grid grid-cols-2 gap-1 p-1 mx-4 mt-3 bg-[#EEF0F2] rounded-lg shrink-0">
+        {(
+          [
+            ["fat", "Foto Finish FAT"],
+            ["fdt", "Foto Finish FDT"],
+          ] as ["fat" | "fdt", string][]
+        ).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)} className={`text-xs font-semibold min-h-9 rounded-md ${tab === k ? "bg-white text-ink shadow-sm" : "text-muted"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="px-4 pt-3 shrink-0">
+        <RfsChecklist projectId={String(projectId)} canComplete={canComplete} />
+      </div>
+      {tab === "fdt" && (
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
+          <FdtFinishPanel projectId={String(projectId)} isAdmin={false} />
+        </div>
+      )}
+      <ul className={`flex-1 overflow-y-auto flex flex-col gap-2 p-4 min-h-0 ${tab === "fdt" ? "hidden" : ""}`}>
         {fats === null && <p className="text-sm text-muted">Memuat...</p>}
         {fats !== null && eligible.length === 0 && (
           <p className="text-sm text-muted">Belum ada FAT yang semua port-nya terverifikasi QC.</p>

@@ -2,7 +2,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { pb } from "@/lib/pocketbase";
+import { pb, currentUser } from "@/lib/pocketbase";
+import { FdtFinishPanel, RfsChecklist } from "@/components/FdtFinishPanel";
 import type { RecordModel } from "pocketbase";
 
 type ProjectRow = RecordModel & { cluster_name: string; cluster_id: string };
@@ -16,6 +17,9 @@ export default function AdminFatFinishListPage() {
   const [fats, setFats] = useState<Asset[] | null>(null);
   const [tests, setTests] = useState<OpmTest[]>([]);
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [tab, setTab] = useState<"fat" | "fdt">("fat");
+  const role = currentUser()?.role;
+  const canComplete = role === "admin" || role === "surveyor";
 
   useEffect(() => {
     pb().collection("projects").getOne<ProjectRow>(String(projectId)).then(setProject).catch(() => void 0);
@@ -54,13 +58,31 @@ export default function AdminFatFinishListPage() {
     <div className="max-w-2xl flex flex-col gap-4">
       <div>
         <p className="text-xs text-muted font-mono">{project?.cluster_id}</p>
-        <h1 className="text-xl font-semibold">Foto Finish FAT — {project?.cluster_name || "Memuat..."}</h1>
+        <h1 className="text-xl font-semibold">Finish RFS — {project?.cluster_name || "Memuat..."}</h1>
         <p className="text-sm text-muted">
-          Syarat tambahan setelah RFS — FAT yang 8 port-nya sudah lengkap & terverifikasi QC.
+          Syarat setelah RFS: foto Finish tiap FAT + foto Finish FDT (core feeder, FDT luar, cek redaman 1 port). Lengkap → proyek
+          lanjut ke tahap ATP.
         </p>
       </div>
 
-      <div className="flex flex-col gap-2">
+      <RfsChecklist projectId={String(projectId)} canComplete={canComplete} />
+
+      <div className="flex gap-2">
+        {(
+          [
+            ["fat", "Foto Finish FAT"],
+            ["fdt", "Foto Finish FDT"],
+          ] as ["fat" | "fdt", string][]
+        ).map(([k, label]) => (
+          <button key={k} onClick={() => setTab(k)} className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${tab === k ? "bg-ink text-white border-ink" : "border-border text-subtle"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "fdt" && <FdtFinishPanel projectId={String(projectId)} isAdmin />}
+
+      <div className={`flex flex-col gap-2 ${tab === "fdt" ? "hidden" : ""}`}>
         {fats === null && <p className="text-sm text-muted">Memuat...</p>}
         {fats !== null && eligible.length === 0 && (
           <p className="text-sm text-muted">Belum ada FAT yang semua port-nya terverifikasi QC.</p>
@@ -84,7 +106,7 @@ export default function AdminFatFinishListPage() {
         })}
       </div>
 
-      {notYet.length > 0 && (
+      {tab === "fat" && notYet.length > 0 && (
         <div className="flex flex-col gap-1">
           <p className="text-xs text-faint mt-2">FAT yang belum lengkap/terverifikasi ({notYet.length}):</p>
           {notYet.map((f) => (

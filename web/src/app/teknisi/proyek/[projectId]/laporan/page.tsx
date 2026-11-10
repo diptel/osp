@@ -11,7 +11,7 @@ type Project = RecordModel & { cluster_name: string; cluster_id: string };
 export default function LaporanPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const [project, setProject] = useState<Project | null>(null);
-  const [tab, setTab] = useState<"opm" | "fat_finish">("opm");
+  const [tab, setTab] = useState<"opm" | "fat_finish" | "atp_form">("opm");
 
   useEffect(() => {
     pb().collection("projects").getOne<Project>(String(projectId)).then(setProject).catch(() => void 0);
@@ -45,6 +45,14 @@ export default function LaporanPage() {
           }`}
         >
           Rekap Finish FAT
+        </button>
+        <button
+          onClick={() => setTab("atp_form")}
+          className={`px-3 py-1.5 rounded-full text-xs font-semibold border ${
+            tab === "atp_form" ? "bg-ink text-white border-ink" : "border-border text-subtle"
+          }`}
+        >
+          Form ATP
         </button>
       </div>
       <div className="flex-1 overflow-y-auto p-4 min-h-0">

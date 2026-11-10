@@ -2,11 +2,11 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { pb } from "@/lib/pocketbase";
+import { pb, fileUrl } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 import { rupiah } from "@/components/ExpenseList";
 
-type Project = RecordModel & { cluster_name: string; cluster_id: string; name: string };
+type Project = RecordModel & { cluster_name: string; cluster_id: string; name: string; atp_logo?: string; feeder_cores?: number };
 type Pkg = RecordModel & {
   type: string;
   name: string;
@@ -266,6 +266,18 @@ export default function PaketPage() {
     }
   }
 
+  async function uploadAtpLogo(file: File) {
+    const form = new FormData();
+    form.append("atp_logo", file);
+    try {
+      await pb().collection("projects").update(pid, form);
+      setMsg("Logo header Form ATP tersimpan.");
+      load();
+    } catch (e) {
+      setMsg("Gagal unggah logo: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   async function saveCores(f: Fat, v: string) {
     const cores = Math.max(0, Math.floor(Number(v) || 0));
     try {
@@ -478,6 +490,25 @@ export default function PaketPage() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Header Form ATP */}
+      <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
+        <p className="text-sm font-semibold">Logo header Form ATP E2E (vendor utama)</p>
+        <p className="text-xs text-muted">
+          Form ATP dicetak dengan logo vendor utama di kiri (mis. main vendor pemilik form) dan logo klien di kanan (dari
+          menu Klien). Unggah file logo yang diberikan vendor/klien.
+        </p>
+        <div className="flex items-center gap-3">
+          {project?.atp_logo && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={fileUrl(project, project.atp_logo, "400x0")} alt="logo vendor" className="h-10 object-contain bg-white border border-border rounded px-2" />
+          )}
+          <label className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border cursor-pointer">
+            {project?.atp_logo ? "Ganti logo" : "Unggah logo"}
+            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAtpLogo(f); e.target.value = ""; }} />
+          </label>
+        </div>
       </div>
 
       {/* Core per FAT */}

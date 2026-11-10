@@ -81,4 +81,44 @@ function packageProgress(app, pid) {
   return { packages: out, total_amount: total, fats_done: fatsDone, cores_done: coresDone, ports_approved: portsApproved }
 }
 
-module.exports = { distanceM, hamming, assetPos, geo, isStaff, packageProgress, DUP_BITS: 5 }
+// Checklist kelengkapan Finish RFS (dipakai endpoint rfs-status & rfs-complete)
+function rfsChecklist(app, pid) {
+  const project = app.findRecordById("projects", pid)
+  const fats = app.findRecordsByFilter("assets", "project = {:p} && kind = 'fat'", "line,code", 0, 0, { p: pid })
+  const approvedByFat = {}
+  for (const t of app.findRecordsByFilter("opm_tests", "project = {:p} && status = 'approved'", "", 0, 0, { p: pid })) {
+    approvedByFat[t.getString("fat")] = (approvedByFat[t.getString("fat")] || 0) + 1
+  }
+  const finishByFat = {}
+  for (const ph of app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fat_finish'", "", 0, 0, { p: pid })) {
+    finishByFat[ph.getString("asset")] = (finishByFat[ph.getString("asset")] || 0) + 1
+  }
+  const fatRows = fats.map((f) => {
+    const need = f.getInt("ports") || 8
+    return { id: f.id, code: f.getString("code"), ports: need, approved: approvedByFat[f.id] || 0,
+             finish_photos: finishByFat[f.id] || 0 }
+  })
+  const fatsVerified = fatRows.filter((r) => r.approved >= r.ports).length
+  const fatsWithPhoto = fatRows.filter((r) => r.finish_photos > 0).length
+
+  const feederNeed = project.getInt("feeder_cores") || 0
+  const feeder = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_feeder'", "seq", 0, 0, { p: pid })
+    .map((ph) => ({ id: ph.id, seq: ph.getInt("seq"), file: ph.getString("file") }))
+  const fdtFinish = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_finish'", "-created", 0, 0, { p: pid }).length
+  const fdtOpm = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_opm'", "-created", 0, 0, { p: pid })
+  const seqs = {}
+  for (const f of feeder) seqs[f.seq] = true
+  let feederDone = 0
+  for (let i = 1; i <= feederNeed; i++) if (seqs[i]) feederDone++
+
+  const items = [
+    { key: "fat_verified", label: "Semua port FAT terverifikasi QC", done: fats.length > 0 && fatsVerified === fats.length, detail: `${fatsVerified}/${fats.length} FAT` },
+    { key: "fat_finish", label: "Foto Finish tiap FAT", done: fats.length > 0 && fatsWithPhoto === fats.length, detail: `${fatsWithPhoto}/${fats.length} FAT` },
+    { key: "fdt_feeder", label: "Foto core feeder masuk FDT", done: feederNeed > 0 && feederDone >= feederNeed, detail: feederNeed ? `${feederDone}/${feederNeed} core` : "jumlah core feeder belum diisi admin" },
+    { key: "fdt_finish", label: "Foto akhir FDT (luar)", done: fdtFinish > 0, detail: fdtFinish ? `${fdtFinish} foto` : "belum ada" },
+    { key: "fdt_opm", label: "Cek redaman 1 port FDT (mewakili)", done: fdtOpm.length > 0, detail: fdtOpm.length ? `${fdtOpm[0].getFloat("value_dbm")} dBm` : "belum ada" },
+  ]
+  return { status: project.getString("status"), feeder_cores: feederNeed, fats: fatRows, items, complete: items.every((i) => i.done) }
+}
+
+module.exports = { distanceM, hamming, assetPos, geo, isStaff, packageProgress, rfsChecklist, DUP_BITS: 5 }

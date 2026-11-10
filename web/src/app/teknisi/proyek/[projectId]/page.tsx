@@ -106,7 +106,7 @@ export default function FatListPage() {
             href={`/teknisi/proyek/${projectId}/odp-finish`}
             className="self-start text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-white/10 text-white"
           >
-            📷 Foto Finish FAT
+            📷 Finish RFS
           </Link>
           {canManage && (
             <>
@@ -125,6 +125,15 @@ export default function FatListPage() {
             </>
           )}
         </div>
+        {(project?.status === "atp" || project?.status === "revisi_atp") && (
+          <Link
+            href={`/teknisi/proyek/${projectId}/laporan`}
+            className="text-[11px] font-semibold bg-[#2A2D35] text-white rounded-lg px-2.5 py-1.5 flex items-center justify-between"
+          >
+            <span>📋 Tahap ATP — unduh &amp; cetak Form ATP E2E (per FAT) untuk mendampingi pengecekan</span>
+            <span>›</span>
+          </Link>
+        )}
         {project?.status === "selesai" && (
           <p className="text-[11px] text-line2 bg-[#2A2D35] rounded-lg px-2.5 py-1.5">
             ✓ Proyek sudah selesai — data hanya bisa dilihat.
