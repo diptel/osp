@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
 import { dhash } from "@/lib/dhash";
-import { stampPhoto, fmtStampTime } from "@/lib/stampPhoto";
+import { stampPhoto, fmtStampTime, reverseGeocode } from "@/lib/stampPhoto";
 import type { RecordModel } from "pocketbase";
 
 export type StampedPhoto = RecordModel & {
@@ -14,13 +14,14 @@ export type StampedPhoto = RecordModel & {
   far?: boolean;
   accuracy_m?: number;
   taken_at?: string;
+  place?: string;
   pos?: { lat: number; lon: number };
 };
 
 export type PhotoCheck = { ok: boolean; label: string };
 
 /** Validasi foto berstempel: GPS ada, jarak ke titik ≤ toleransi, (nilai dBm terisi). */
-export function validatePhoto(p: StampedPhoto, toleranceM: number, withDbm: boolean): PhotoCheck[] {
+export function validatePhoto(p: StampedPhoto, toleranceM: number, withDbm: boolean, minDbm?: number | null): PhotoCheck[] {
   const hasPos = !!(p.pos && (p.pos.lat !== 0 || p.pos.lon !== 0));
   const checks: PhotoCheck[] = [
     { ok: hasPos, label: hasPos ? `Posisi GPS tersimpan (±${Math.round(p.accuracy_m || 0)} m)` : "Posisi GPS tidak tersimpan" },
@@ -37,6 +38,10 @@ export function validatePhoto(p: StampedPhoto, toleranceM: number, withDbm: bool
   if (withDbm) {
     const has = p.value_dbm != null && p.value_dbm !== 0;
     checks.push({ ok: has, label: has ? `Nilai redaman ${p.value_dbm} dBm` : "Nilai dBm belum diisi (atau 0)" });
+    if (has && minDbm != null) {
+      const ok = (p.value_dbm as number) >= minDbm;
+      checks.push({ ok, label: ok ? `Memenuhi batas proyek (≥ ${minDbm} dBm)` : `Di bawah batas proyek ${minDbm} dBm — perlu perbaikan` });
+    }
   }
   return checks;
 }
@@ -74,6 +79,7 @@ export function StampedPhotoSlot({
   onChange,
   stampTitle = "",
   toleranceM = 50,
+  minDbm = null,
 }: {
   projectId: string;
   assetId: string;
@@ -88,6 +94,8 @@ export function StampedPhotoSlot({
   /** untuk teks stempel di foto */
   stampTitle?: string;
   toleranceM?: number;
+  /** batas redaman minimal proyek (null = tidak dibatasi) */
+  minDbm?: number | null;
 }) {
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -103,6 +111,8 @@ export function StampedPhotoSlot({
     setBusy("Mengambil posisi GPS...");
     try {
       const pos = await getPosition();
+      setBusy("Mencari nama lokasi...");
+      const place = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
       setBusy("Menempel stempel GPS...");
       const now = new Date();
       const lines = [
@@ -110,6 +120,7 @@ export function StampedPhotoSlot({
         fmtStampTime(now),
         `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}  ±${Math.round(pos.coords.accuracy || 0)} m`,
       ];
+      if (place) lines.push(place);
       if (dbmValue != null && !Number.isNaN(dbmValue)) lines.push(`OPM ${dbmValue} dBm`);
       const stamped = await stampPhoto(file, lines);
       setBusy("Mengunggah...");
@@ -127,6 +138,7 @@ export function StampedPhotoSlot({
       form.append("taken_at", now.toISOString());
       form.append("pos", JSON.stringify({ lon: pos.coords.longitude, lat: pos.coords.latitude }));
       form.append("accuracy_m", String(Math.round(pos.coords.accuracy || 0)));
+      if (place) form.append("place", place);
       form.append("phash", phash);
       form.append("uploaded_by", u?.id || "");
       await pb().collection("photos").create(form);
@@ -166,7 +178,7 @@ export function StampedPhotoSlot({
     }
   }
 
-  const checks = photo ? validatePhoto(photo, toleranceM, withDbm) : [];
+  const checks = photo ? validatePhoto(photo, toleranceM, withDbm, minDbm) : [];
   const valid = !!photo && checks.every((c) => c.ok);
 
   return (
@@ -195,6 +207,7 @@ export function StampedPhotoSlot({
           <ul className="text-xs flex flex-col gap-0.5">
             <li className="text-faint">
               {photo.taken_at ? new Date(photo.taken_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : ""}
+              {photo.place ? ` · ${photo.place}` : ""}
             </li>
             {checks.map((c, i) => (
               <li key={i} className={c.ok ? "text-ok" : "text-warn"}>

@@ -24,6 +24,7 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
   const [feederCores, setFeederCores] = useState<number>(0);
   const [tolerance, setTolerance] = useState<number>(50);
   const [clusterId, setClusterId] = useState("");
+  const [minDbm, setMinDbm] = useState<number | null>(null);
   const [coresInput, setCoresInput] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -43,11 +44,12 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
       .catch(() => setPhotos([]));
     pb()
       .collection("projects")
-      .getOne<RecordModel & { feeder_cores?: number; gps_tolerance_m?: number; cluster_id?: string }>(projectId)
+      .getOne<RecordModel & { feeder_cores?: number; gps_tolerance_m?: number; cluster_id?: string; opm_limit_enabled?: boolean; opm_min_dbm?: number }>(projectId)
       .then((p) => {
         setFeederCores(p.feeder_cores || 0);
         setTolerance(p.gps_tolerance_m || 50);
         setClusterId(p.cluster_id || "");
+        setMinDbm(p.opm_limit_enabled ? (p.opm_min_dbm ?? null) : null);
         setCoresInput(p.feeder_cores ? String(p.feeder_cores) : "");
       })
       .catch(() => void 0);
@@ -84,6 +86,7 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
           {feederCores > 0 ? `${feederCores} core feeder masuk FDT` : "Jumlah core feeder belum diisi admin."}
           {" · "}Foto wajib dari kamera di lokasi; stempel tanggal & koordinat GPS ditempel otomatis ke foto, dan jaraknya
           dicek terhadap titik FDT (batas {tolerance} m). Hanya foto yang valid (✓ hijau) yang dihitung.
+          {minDbm != null ? ` Batas redaman proyek: ≥ ${minDbm} dBm.` : ""}
         </p>
         {isAdmin && (
           <div className="flex items-center gap-2 mt-2">
@@ -129,7 +132,7 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
           Satu foto: FDT tampak luar (tertutup rapi) dengan layar OPM yang tercolok di salah satu port output ikut terlihat.
           Isi nilai dBm sesuai layar.
         </p>
-        <StampedPhotoSlot projectId={projectId} assetId={fdt.id} purpose="fdt_finish" label="FDT luar + OPM 1 port" withDbm photo={fdtFinish} allowGallery={isAdmin} canDelete={canDelete} onChange={load} stampTitle={`${clusterId} FDT ${fdt.code}`} toleranceM={tolerance} />
+        <StampedPhotoSlot projectId={projectId} assetId={fdt.id} purpose="fdt_finish" label="FDT luar + OPM 1 port" withDbm photo={fdtFinish} allowGallery={isAdmin} canDelete={canDelete} onChange={load} stampTitle={`${clusterId} FDT ${fdt.code}`} toleranceM={tolerance} minDbm={minDbm} />
       </section>
     </div>
   );

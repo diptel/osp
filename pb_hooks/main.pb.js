@@ -117,6 +117,16 @@ onRecordUpdateRequest((e) => {
     if (st === "rejected" && !r.getString("qc_note").trim()) {
       throw new BadRequestError("Catatan QC wajib diisi kalau ditolak.")
     }
+    // Batas redaman proyek: uji OPM di bawah batas tidak bisa disetujui
+    if (st === "approved" && e.collection.name === "opm_tests") {
+      const project = e.app.findRecordById("projects", r.getString("project"))
+      if (project.getBool("opm_limit_enabled")) {
+        const min = project.getFloat("opm_min_dbm")
+        if (r.getFloat("opm_dbm") < min) {
+          throw new BadRequestError(`Redaman ${r.getFloat("opm_dbm")} dBm di bawah batas proyek (${min} dBm) — tidak bisa disetujui, perlu perbaikan.`)
+        }
+      }
+    }
     r.set("qc_by", e.auth.id)
     r.set("qc_at", new DateTime())
   }

@@ -14,7 +14,7 @@ type Asset = RecordModel & {
   asbuilt_pos?: { lon: number; lat: number };
   project: string;
 };
-type Project = RecordModel & { cluster_id: string; fdt_input_dbm?: number; gps_tolerance_m?: number };
+type Project = RecordModel & { cluster_id: string; fdt_input_dbm?: number; gps_tolerance_m?: number; opm_limit_enabled?: boolean; opm_min_dbm?: number };
 type OpmTest = RecordModel & {
   port_fat: number;
   opm_dbm: number;
@@ -297,6 +297,13 @@ export default function UjiOpmPage() {
             </div>
           </div>
         </div>
+        {project?.opm_limit_enabled && project.opm_min_dbm != null && (
+          <p className={`text-xs rounded-lg px-2.5 py-1.5 ${dbm !== "" && Number(dbm) < project.opm_min_dbm ? "bg-warnbg text-warn font-semibold" : "text-faint"}`}>
+            {dbm !== "" && Number(dbm) < project.opm_min_dbm
+              ? `⚠ ${dbm} dBm di bawah batas proyek ${project.opm_min_dbm} dBm — QC tidak akan menyetujui, perbaiki sambungan dulu.`
+              : `Batas redaman proyek: minimal ${project.opm_min_dbm} dBm.`}
+          </p>
+        )}
         {existing && existing.status === "rejected" && (
           <div className="p-2.5 bg-warnbg border border-warn rounded-xl text-xs text-warn flex flex-col gap-1">
             <p className="font-semibold">⚠ Perlu revisi (ATP)</p>

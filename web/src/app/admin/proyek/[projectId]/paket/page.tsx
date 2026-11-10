@@ -6,7 +6,17 @@ import { pb, fileUrl } from "@/lib/pocketbase";
 import type { RecordModel } from "pocketbase";
 import { rupiah } from "@/components/ExpenseList";
 
-type Project = RecordModel & { cluster_name: string; cluster_id: string; name: string; atp_logo?: string; feeder_cores?: number };
+type Project = RecordModel & {
+  cluster_name: string;
+  cluster_id: string;
+  name: string;
+  atp_logo?: string;
+  feeder_cores?: number;
+  gps_tolerance_m?: number;
+  opm_limit_enabled?: boolean;
+  opm_min_dbm?: number;
+  fdt_input_dbm?: number;
+};
 type Pkg = RecordModel & {
   type: string;
   name: string;
@@ -93,6 +103,7 @@ export default function PaketPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [editId, setEditId] = useState("");
   const [msg, setMsg] = useState("");
+  const [settings, setSettings] = useState({ gps_tolerance_m: "", opm_limit_enabled: false, opm_min_dbm: "", feeder_cores: "", fdt_input_dbm: "" });
   const [busy, setBusy] = useState("");
   const [templates, setTemplates] = useState<Template[]>([]);
   const [tplSel, setTplSel] = useState("");
@@ -100,7 +111,20 @@ export default function PaketPage() {
   const [showTpl, setShowTpl] = useState(false);
 
   const load = useCallback(() => {
-    pb().collection("projects").getOne<Project>(pid).then(setProject).catch(() => void 0);
+    pb()
+      .collection("projects")
+      .getOne<Project>(pid)
+      .then((p) => {
+        setProject(p);
+        setSettings({
+          gps_tolerance_m: p.gps_tolerance_m ? String(p.gps_tolerance_m) : "",
+          opm_limit_enabled: !!p.opm_limit_enabled,
+          opm_min_dbm: p.opm_min_dbm != null ? String(p.opm_min_dbm) : "",
+          feeder_cores: p.feeder_cores ? String(p.feeder_cores) : "",
+          fdt_input_dbm: p.fdt_input_dbm != null ? String(p.fdt_input_dbm) : "",
+        });
+      })
+      .catch(() => void 0);
     pb()
       .collection("work_packages")
       .getFullList<Pkg>({ filter: `project = "${pid}"`, sort: "type,name" })
@@ -263,6 +287,22 @@ export default function PaketPage() {
       setMsg("Gagal menghapus: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy("");
+    }
+  }
+
+  async function saveSettings() {
+    try {
+      await pb().collection("projects").update(pid, {
+        gps_tolerance_m: Number(settings.gps_tolerance_m) || 0,
+        opm_limit_enabled: settings.opm_limit_enabled,
+        opm_min_dbm: settings.opm_min_dbm === "" ? null : Number(settings.opm_min_dbm),
+        feeder_cores: Number(settings.feeder_cores) || 0,
+        fdt_input_dbm: settings.fdt_input_dbm === "" ? null : Number(settings.fdt_input_dbm),
+      });
+      setMsg("Pengaturan teknis tersimpan.");
+      load();
+    } catch (e) {
+      setMsg("Gagal menyimpan pengaturan: " + (e instanceof Error ? e.message : String(e)));
     }
   }
 
@@ -490,6 +530,47 @@ export default function PaketPage() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Pengaturan teknis */}
+      <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
+        <p className="text-sm font-semibold">Pengaturan teknis proyek</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="text-xs text-muted flex flex-col gap-1">
+            Toleransi jarak foto ke titik (m)
+            <input type="number" min={0} value={settings.gps_tolerance_m} onChange={(e) => setSettings({ ...settings, gps_tolerance_m: e.target.value })} placeholder="50" className="border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+          </label>
+          <label className="text-xs text-muted flex flex-col gap-1">
+            Jumlah core feeder masuk FDT
+            <input type="number" min={0} value={settings.feeder_cores} onChange={(e) => setSettings({ ...settings, feeder_cores: e.target.value })} className="border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+          </label>
+          <label className="text-xs text-muted flex flex-col gap-1">
+            Input FDT terukur (dBm)
+            <input type="number" step="0.01" value={settings.fdt_input_dbm} onChange={(e) => setSettings({ ...settings, fdt_input_dbm: e.target.value })} placeholder="-9.84" className="border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+          </label>
+          <div className="text-xs text-muted flex flex-col gap-1">
+            <label className="flex items-center gap-2 mt-1">
+              <input type="checkbox" checked={settings.opm_limit_enabled} onChange={(e) => setSettings({ ...settings, opm_limit_enabled: e.target.checked })} />
+              Batasi redaman minimal yang disetujui
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              value={settings.opm_min_dbm}
+              onChange={(e) => setSettings({ ...settings, opm_min_dbm: e.target.value })}
+              placeholder="mis. -25"
+              disabled={!settings.opm_limit_enabled}
+              className="border border-border rounded-lg px-3 py-2 text-sm bg-card disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <p className="text-[11px] text-faint">
+          Batas redaman berlaku untuk uji OPM tiap port FAT dan cek 1 port FDT: nilai di bawah batas (lebih negatif) tidak bisa
+          disetujui QC dan ditandai di app teknisi. Kosongkan/nonaktifkan kalau tidak ingin dibatasi.
+        </p>
+        <button onClick={saveSettings} className="self-start px-3 py-2 rounded-lg text-xs font-semibold bg-ink text-white">
+          Simpan pengaturan
+        </button>
       </div>
 
       {/* Header Form ATP */}

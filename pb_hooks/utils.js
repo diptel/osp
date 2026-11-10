@@ -113,8 +113,13 @@ function rfsChecklist(app, pid) {
   const fdtFinish = fdtFinishList.length
   const fdtFinishFar = fdtFinishAll.length - fdtFinish
   // nilai redaman: dari foto akhir FDT (baru) atau foto fdt_opm terpisah (lama)
-  const fdtOpm = fdtFinishList.filter((ph) => ph.get("value_dbm") !== null && ph.get("value_dbm") !== undefined && ph.getFloat("value_dbm") !== 0)
-    .concat(app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_opm'", "-created", 0, 0, { p: pid }))
+  const limitOn = project.getBool("opm_limit_enabled")
+  const minDbm = project.getFloat("opm_min_dbm")
+  const hasDbm = (ph) => ph.get("value_dbm") !== null && ph.get("value_dbm") !== undefined && ph.getFloat("value_dbm") !== 0
+  const fdtOpmAll = fdtFinishList.filter(hasDbm)
+    .concat(app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_opm'", "-created", 0, 0, { p: pid }).filter(hasDbm))
+  const fdtOpm = fdtOpmAll.filter((ph) => !limitOn || ph.getFloat("value_dbm") >= minDbm)
+  const fdtOpmBelow = fdtOpmAll.length - fdtOpm.length
   const seqs = {}
   for (const f of feeder) seqs[f.seq] = true
   let feederDone = 0
@@ -125,10 +130,11 @@ function rfsChecklist(app, pid) {
     { key: "fat_finish", label: "Foto Finish tiap FAT", done: fats.length > 0 && fatsWithPhoto === fats.length, detail: `${fatsWithPhoto}/${fats.length} FAT` },
     { key: "fdt_feeder", label: "Foto core feeder masuk FDT (valid)", done: feederNeed > 0 && feederDone >= feederNeed, detail: feederNeed ? `${feederDone}/${feederNeed} core` : "jumlah core feeder belum diisi admin" },
     { key: "fdt_finish", label: "Foto akhir FDT (luar) + layar OPM 1 port", done: fdtFinish > 0 && fdtOpm.length > 0,
-      detail: fdtFinish ? (fdtOpm.length ? `${fdtOpm[0].getFloat("value_dbm")} dBm` : "foto ada, nilai dBm belum diisi")
+      detail: fdtFinish ? (fdtOpm.length ? `${fdtOpm[0].getFloat("value_dbm")} dBm` : (fdtOpmBelow ? `${fdtOpmAll[0].getFloat("value_dbm")} dBm di bawah batas ${minDbm} dBm` : "foto ada, nilai dBm belum diisi"))
                         : (fdtFinishFar ? "foto ada tapi tidak valid (jauh dari titik FDT) — foto ulang di lokasi" : "belum ada") },
   ]
-  return { status: project.getString("status"), feeder_cores: feederNeed, fats: fatRows, items, complete: items.every((i) => i.done) }
+  return { status: project.getString("status"), feeder_cores: feederNeed, opm_limit_enabled: limitOn, opm_min_dbm: minDbm,
+           fats: fatRows, items, complete: items.every((i) => i.done) }
 }
 
 module.exports = { distanceM, hamming, assetPos, geo, isStaff, packageProgress, rfsChecklist, DUP_BITS: 5 }

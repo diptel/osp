@@ -9,7 +9,11 @@ type OpmRow = RecordModel & {
   opm_dbm: number;
   status: string;
   qc_note?: string;
-  expand?: { fat?: RecordModel & { code: string }; photo?: RecordModel & { file: string }; project?: RecordModel & { cluster_name: string } };
+  expand?: {
+    fat?: RecordModel & { code: string };
+    photo?: RecordModel & { file: string };
+    project?: RecordModel & { cluster_name: string; opm_limit_enabled?: boolean; opm_min_dbm?: number };
+  };
 };
 type WorkItemRow = RecordModel & {
   qty: number;
@@ -225,6 +229,9 @@ export default function AntrianQcPage() {
                   </p>
                   <p className="text-xs text-muted">
                     {o.expand?.project?.cluster_name} · {o.opm_dbm} dBm
+                    {o.expand?.project?.opm_limit_enabled && o.expand.project.opm_min_dbm != null && o.opm_dbm < o.expand.project.opm_min_dbm && (
+                      <span className="ml-1 text-warn font-semibold">⚠ di bawah batas {o.expand.project.opm_min_dbm} dBm</span>
+                    )}
                   </p>
                 </div>
                 <button disabled={busyId === o.id} onClick={() => decide("opm_tests", o.id, "approved")} className={btnOk}>

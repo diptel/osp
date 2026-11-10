@@ -234,7 +234,7 @@ export default function AdminDashboard() {
                 Laporan
               </Link>
               <Link href={`/admin/proyek/${p.id}/paket`} className="text-xs text-accent underline">
-                Paket &amp; harga
+                Paket &amp; pengaturan
               </Link>
               <Link href={`/admin/proyek/${p.id}/manajemen`} className="text-xs text-accent underline">
                 Manajemen
