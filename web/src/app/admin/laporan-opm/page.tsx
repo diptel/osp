@@ -79,7 +79,7 @@ export default function LaporanOpmPage() {
                 href={`/admin/proyek/${p.id}/odp-finish`}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-border bg-card"
               >
-                Finish FAT
+                Finish RFS
               </Link>
             </div>
           );
