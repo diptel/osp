@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { pb, currentUser, fileUrl } from "@/lib/pocketbase";
 import { dhash } from "@/lib/dhash";
+import { stampPhoto, fmtStampTime } from "@/lib/stampPhoto";
 import type { RecordModel } from "pocketbase";
 
 export type StampedPhoto = RecordModel & {
@@ -11,9 +12,37 @@ export type StampedPhoto = RecordModel & {
   value_dbm?: number;
   distance_m?: number;
   far?: boolean;
+  accuracy_m?: number;
   taken_at?: string;
   pos?: { lat: number; lon: number };
 };
+
+export type PhotoCheck = { ok: boolean; label: string };
+
+/** Validasi foto berstempel: GPS ada, jarak ke titik ≤ toleransi, (nilai dBm terisi). */
+export function validatePhoto(p: StampedPhoto, toleranceM: number, withDbm: boolean): PhotoCheck[] {
+  const hasPos = !!(p.pos && (p.pos.lat !== 0 || p.pos.lon !== 0));
+  const checks: PhotoCheck[] = [
+    { ok: hasPos, label: hasPos ? `Posisi GPS tersimpan (±${Math.round(p.accuracy_m || 0)} m)` : "Posisi GPS tidak tersimpan" },
+    {
+      ok: hasPos && p.distance_m != null && !p.far,
+      label:
+        p.distance_m == null
+          ? "Jarak ke titik tidak bisa dihitung (titik belum punya koordinat)"
+          : p.far
+            ? `Terlalu jauh dari titik: ${fmtDist(p.distance_m)} (batas ${toleranceM} m) — foto harus diambil di lokasi`
+            : `Jarak ke titik ${fmtDist(p.distance_m)} (batas ${toleranceM} m)`,
+    },
+  ];
+  if (withDbm) {
+    const has = p.value_dbm != null && p.value_dbm !== 0;
+    checks.push({ ok: has, label: has ? `Nilai redaman ${p.value_dbm} dBm` : "Nilai dBm belum diisi (atau 0)" });
+  }
+  return checks;
+}
+function fmtDist(m: number) {
+  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${Math.round(m)} m`;
+}
 
 function getPosition(): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
@@ -43,6 +72,8 @@ export function StampedPhotoSlot({
   allowGallery = false,
   canDelete = false,
   onChange,
+  stampTitle = "",
+  toleranceM = 50,
 }: {
   projectId: string;
   assetId: string;
@@ -54,6 +85,9 @@ export function StampedPhotoSlot({
   allowGallery?: boolean;
   canDelete?: boolean;
   onChange: () => void;
+  /** untuk teks stempel di foto */
+  stampTitle?: string;
+  toleranceM?: number;
 }) {
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
@@ -69,11 +103,20 @@ export function StampedPhotoSlot({
     setBusy("Mengambil posisi GPS...");
     try {
       const pos = await getPosition();
+      setBusy("Menempel stempel GPS...");
+      const now = new Date();
+      const lines = [
+        `${stampTitle ? stampTitle + " · " : ""}${label}`,
+        fmtStampTime(now),
+        `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}  ±${Math.round(pos.coords.accuracy || 0)} m`,
+      ];
+      if (dbmValue != null && !Number.isNaN(dbmValue)) lines.push(`OPM ${dbmValue} dBm`);
+      const stamped = await stampPhoto(file, lines);
       setBusy("Mengunggah...");
-      const phash = await dhash(file);
+      const phash = await dhash(stamped);
       const u = currentUser();
       const form = new FormData();
-      form.append("file", file, file.name || `${purpose}-${Date.now()}.jpg`);
+      form.append("file", stamped, `${purpose}-${Date.now()}.jpg`);
       form.append("project", projectId);
       form.append("asset", assetId);
       form.append("label", label);
@@ -81,7 +124,7 @@ export function StampedPhotoSlot({
       form.append("purpose", purpose);
       if (seq != null) form.append("seq", String(seq));
       if (dbmValue != null && !Number.isNaN(dbmValue)) form.append("value_dbm", String(dbmValue));
-      form.append("taken_at", new Date().toISOString());
+      form.append("taken_at", now.toISOString());
       form.append("pos", JSON.stringify({ lon: pos.coords.longitude, lat: pos.coords.latitude }));
       form.append("accuracy_m", String(Math.round(pos.coords.accuracy || 0)));
       form.append("phash", phash);
@@ -123,8 +166,11 @@ export function StampedPhotoSlot({
     }
   }
 
+  const checks = photo ? validatePhoto(photo, toleranceM, withDbm) : [];
+  const valid = !!photo && checks.every((c) => c.ok);
+
   return (
-    <div className="bg-card border border-border rounded-xl p-3 flex gap-3">
+    <div className={`bg-card border rounded-xl p-3 flex gap-3 ${photo ? (valid ? "border-ok" : "border-warn") : "border-border"}`}>
       <div className="w-24 h-24 rounded-lg bg-[#EEF0F2] overflow-hidden shrink-0 relative">
         {photo ? (
           <a href={fileUrl(photo, photo.file)} target="_blank" rel="noreferrer">
@@ -135,19 +181,28 @@ export function StampedPhotoSlot({
           <span className="absolute inset-0 flex items-center justify-center text-2xl text-faint">📷</span>
         )}
         {photo && (
-          <span className={`absolute bottom-1 left-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${photo.far ? "bg-warn text-white" : "bg-ok text-white"}`}>
-            {photo.far ? `⚠ ${Math.round(photo.distance_m || 0)} m` : "✓ GPS"}
+          <span className={`absolute bottom-1 left-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${valid ? "bg-ok text-white" : "bg-warn text-white"}`}>
+            {valid ? "✓ Valid" : "⚠ Tidak valid"}
           </span>
         )}
       </div>
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-        <p className="text-sm font-semibold">{label}</p>
+        <p className="text-sm font-semibold flex items-center gap-1.5">
+          {photo && <span className={valid ? "text-ok" : "text-warn"}>{valid ? "✓" : "⚠"}</span>}
+          {label}
+        </p>
         {photo ? (
-          <p className="text-xs text-muted">
-            {photo.taken_at ? new Date(photo.taken_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : ""}
-            {withDbm && photo.value_dbm != null ? ` · ${photo.value_dbm} dBm` : ""}
-            {photo.distance_m != null ? ` · ${Math.round(photo.distance_m)} m dari titik FDT` : ""}
-          </p>
+          <ul className="text-xs flex flex-col gap-0.5">
+            <li className="text-faint">
+              {photo.taken_at ? new Date(photo.taken_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : ""}
+            </li>
+            {checks.map((c, i) => (
+              <li key={i} className={c.ok ? "text-ok" : "text-warn"}>
+                {c.ok ? "✓" : "✗"} {c.label}
+              </li>
+            ))}
+            {!valid && <li className="text-warn font-semibold">Foto ulang di lokasi titik agar valid.</li>}
+          </ul>
         ) : (
           <p className="text-xs text-faint">Belum ada foto. Ambil dari kamera di lokasi — posisi GPS ikut tersimpan.</p>
         )}

@@ -102,11 +102,16 @@ function rfsChecklist(app, pid) {
   const fatsWithPhoto = fatRows.filter((r) => r.finish_photos > 0).length
 
   const feederNeed = project.getInt("feeder_cores") || 0
+  // hanya foto VALID yang dihitung: ada GPS, jarak dalam toleransi (far = false)
+  const okPhoto = (ph) => !ph.getBool("far") && ph.get("distance_m") !== null && ph.get("distance_m") !== undefined
   const feeder = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_feeder'", "seq", 0, 0, { p: pid })
+    .filter(okPhoto)
     .map((ph) => ({ id: ph.id, seq: ph.getInt("seq"), file: ph.getString("file") }))
   // foto akhir FDT luar SEKALIGUS menampilkan layar OPM 1 port (nilai dBm di value_dbm)
-  const fdtFinishList = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_finish'", "-created", 0, 0, { p: pid })
+  const fdtFinishAll = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_finish'", "-created", 0, 0, { p: pid })
+  const fdtFinishList = fdtFinishAll.filter(okPhoto)
   const fdtFinish = fdtFinishList.length
+  const fdtFinishFar = fdtFinishAll.length - fdtFinish
   // nilai redaman: dari foto akhir FDT (baru) atau foto fdt_opm terpisah (lama)
   const fdtOpm = fdtFinishList.filter((ph) => ph.get("value_dbm") !== null && ph.get("value_dbm") !== undefined && ph.getFloat("value_dbm") !== 0)
     .concat(app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_opm'", "-created", 0, 0, { p: pid }))
@@ -118,9 +123,10 @@ function rfsChecklist(app, pid) {
   const items = [
     { key: "fat_verified", label: "Semua port FAT terverifikasi QC", done: fats.length > 0 && fatsVerified === fats.length, detail: `${fatsVerified}/${fats.length} FAT` },
     { key: "fat_finish", label: "Foto Finish tiap FAT", done: fats.length > 0 && fatsWithPhoto === fats.length, detail: `${fatsWithPhoto}/${fats.length} FAT` },
-    { key: "fdt_feeder", label: "Foto core feeder masuk FDT", done: feederNeed > 0 && feederDone >= feederNeed, detail: feederNeed ? `${feederDone}/${feederNeed} core` : "jumlah core feeder belum diisi admin" },
+    { key: "fdt_feeder", label: "Foto core feeder masuk FDT (valid)", done: feederNeed > 0 && feederDone >= feederNeed, detail: feederNeed ? `${feederDone}/${feederNeed} core` : "jumlah core feeder belum diisi admin" },
     { key: "fdt_finish", label: "Foto akhir FDT (luar) + layar OPM 1 port", done: fdtFinish > 0 && fdtOpm.length > 0,
-      detail: fdtFinish ? (fdtOpm.length ? `${fdtOpm[0].getFloat("value_dbm")} dBm` : "foto ada, nilai dBm belum diisi") : "belum ada" },
+      detail: fdtFinish ? (fdtOpm.length ? `${fdtOpm[0].getFloat("value_dbm")} dBm` : "foto ada, nilai dBm belum diisi")
+                        : (fdtFinishFar ? "foto ada tapi tidak valid (jauh dari titik FDT) — foto ulang di lokasi" : "belum ada") },
   ]
   return { status: project.getString("status"), feeder_cores: feederNeed, fats: fatRows, items, complete: items.every((i) => i.done) }
 }

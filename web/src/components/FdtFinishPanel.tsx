@@ -22,6 +22,8 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
   const [fdt, setFdt] = useState<Fdt | null | undefined>(undefined);
   const [photos, setPhotos] = useState<StampedPhoto[]>([]);
   const [feederCores, setFeederCores] = useState<number>(0);
+  const [tolerance, setTolerance] = useState<number>(50);
+  const [clusterId, setClusterId] = useState("");
   const [coresInput, setCoresInput] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -41,9 +43,11 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
       .catch(() => setPhotos([]));
     pb()
       .collection("projects")
-      .getOne<RecordModel & { feeder_cores?: number }>(projectId)
+      .getOne<RecordModel & { feeder_cores?: number; gps_tolerance_m?: number; cluster_id?: string }>(projectId)
       .then((p) => {
         setFeederCores(p.feeder_cores || 0);
+        setTolerance(p.gps_tolerance_m || 50);
+        setClusterId(p.cluster_id || "");
         setCoresInput(p.feeder_cores ? String(p.feeder_cores) : "");
       })
       .catch(() => void 0);
@@ -78,7 +82,8 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
         <p className="font-semibold">FDT {fdt.code}</p>
         <p className="text-muted mt-0.5">
           {feederCores > 0 ? `${feederCores} core feeder masuk FDT` : "Jumlah core feeder belum diisi admin."}
-          {" · "}Semua foto wajib dari kamera di lokasi; posisi GPS dicek terhadap titik FDT.
+          {" · "}Foto wajib dari kamera di lokasi; stempel tanggal & koordinat GPS ditempel otomatis ke foto, dan jaraknya
+          dicek terhadap titik FDT (batas {tolerance} m). Hanya foto yang valid (✓ hijau) yang dihitung.
         </p>
         {isAdmin && (
           <div className="flex items-center gap-2 mt-2">
@@ -112,6 +117,8 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
             allowGallery={isAdmin}
             canDelete={canDelete}
             onChange={load}
+            stampTitle={`${clusterId} FDT ${fdt.code}`}
+            toleranceM={tolerance}
           />
         ))}
       </section>
@@ -122,7 +129,7 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
           Satu foto: FDT tampak luar (tertutup rapi) dengan layar OPM yang tercolok di salah satu port output ikut terlihat.
           Isi nilai dBm sesuai layar.
         </p>
-        <StampedPhotoSlot projectId={projectId} assetId={fdt.id} purpose="fdt_finish" label="FDT luar + OPM 1 port" withDbm photo={fdtFinish} allowGallery={isAdmin} canDelete={canDelete} onChange={load} />
+        <StampedPhotoSlot projectId={projectId} assetId={fdt.id} purpose="fdt_finish" label="FDT luar + OPM 1 port" withDbm photo={fdtFinish} allowGallery={isAdmin} canDelete={canDelete} onChange={load} stampTitle={`${clusterId} FDT ${fdt.code}`} toleranceM={tolerance} />
       </section>
     </div>
   );
