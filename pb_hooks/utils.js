@@ -104,8 +104,12 @@ function rfsChecklist(app, pid) {
   const feederNeed = project.getInt("feeder_cores") || 0
   const feeder = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_feeder'", "seq", 0, 0, { p: pid })
     .map((ph) => ({ id: ph.id, seq: ph.getInt("seq"), file: ph.getString("file") }))
-  const fdtFinish = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_finish'", "-created", 0, 0, { p: pid }).length
-  const fdtOpm = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_opm'", "-created", 0, 0, { p: pid })
+  // foto akhir FDT luar SEKALIGUS menampilkan layar OPM 1 port (nilai dBm di value_dbm)
+  const fdtFinishList = app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_finish'", "-created", 0, 0, { p: pid })
+  const fdtFinish = fdtFinishList.length
+  // nilai redaman: dari foto akhir FDT (baru) atau foto fdt_opm terpisah (lama)
+  const fdtOpm = fdtFinishList.filter((ph) => ph.get("value_dbm") !== null && ph.get("value_dbm") !== undefined && ph.getFloat("value_dbm") !== 0)
+    .concat(app.findRecordsByFilter("photos", "project = {:p} && purpose = 'fdt_opm'", "-created", 0, 0, { p: pid }))
   const seqs = {}
   for (const f of feeder) seqs[f.seq] = true
   let feederDone = 0
@@ -115,8 +119,8 @@ function rfsChecklist(app, pid) {
     { key: "fat_verified", label: "Semua port FAT terverifikasi QC", done: fats.length > 0 && fatsVerified === fats.length, detail: `${fatsVerified}/${fats.length} FAT` },
     { key: "fat_finish", label: "Foto Finish tiap FAT", done: fats.length > 0 && fatsWithPhoto === fats.length, detail: `${fatsWithPhoto}/${fats.length} FAT` },
     { key: "fdt_feeder", label: "Foto core feeder masuk FDT", done: feederNeed > 0 && feederDone >= feederNeed, detail: feederNeed ? `${feederDone}/${feederNeed} core` : "jumlah core feeder belum diisi admin" },
-    { key: "fdt_finish", label: "Foto akhir FDT (luar)", done: fdtFinish > 0, detail: fdtFinish ? `${fdtFinish} foto` : "belum ada" },
-    { key: "fdt_opm", label: "Cek redaman 1 port FDT (mewakili)", done: fdtOpm.length > 0, detail: fdtOpm.length ? `${fdtOpm[0].getFloat("value_dbm")} dBm` : "belum ada" },
+    { key: "fdt_finish", label: "Foto akhir FDT (luar) + layar OPM 1 port", done: fdtFinish > 0 && fdtOpm.length > 0,
+      detail: fdtFinish ? (fdtOpm.length ? `${fdtOpm[0].getFloat("value_dbm")} dBm` : "foto ada, nilai dBm belum diisi") : "belum ada" },
   ]
   return { status: project.getString("status"), feeder_cores: feederNeed, fats: fatRows, items, complete: items.every((i) => i.done) }
 }

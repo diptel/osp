@@ -39,7 +39,9 @@ export async function fetchAtpFormData(projectId: string, client: Client): Promi
   }
   let fdtCheck: number | undefined;
   try {
-    const ph = await client.collection("photos").getFirstListItem<RecordModel & { value_dbm?: number }>(`project = "${projectId}" && purpose = "fdt_opm"`, { sort: "-created" });
+    const ph = await client
+      .collection("photos")
+      .getFirstListItem<RecordModel & { value_dbm?: number }>(`project = "${projectId}" && (purpose = "fdt_finish" || purpose = "fdt_opm") && value_dbm != 0`, { sort: "-created" });
     fdtCheck = ph.value_dbm;
   } catch {
     /* belum ada */

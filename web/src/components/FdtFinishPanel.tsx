@@ -65,7 +65,6 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
   const feederBySeq = new Map<number, StampedPhoto>();
   for (const p of byPurpose("fdt_feeder")) if (p.seq != null && !feederBySeq.has(p.seq)) feederBySeq.set(p.seq, p);
   const fdtFinish = byPurpose("fdt_finish")[0] || null;
-  const fdtOpm = byPurpose("fdt_opm")[0] || null;
   const role = currentUser()?.role;
   const canDelete = isAdmin || role === "qc";
 
@@ -118,14 +117,12 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
       </section>
 
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold">2. Foto akhir FDT (luar, tertutup rapi)</h3>
-        <StampedPhotoSlot projectId={projectId} assetId={fdt.id} purpose="fdt_finish" label="FDT tampak luar" photo={fdtFinish} allowGallery={isAdmin} canDelete={canDelete} onChange={load} />
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-semibold">3. Cek redaman 1 port FDT (mewakili)</h3>
-        <p className="text-xs text-faint -mt-1">Foto layar OPM di salah satu port output FDT, lalu isi nilai dBm sesuai layar.</p>
-        <StampedPhotoSlot projectId={projectId} assetId={fdt.id} purpose="fdt_opm" label="OPM 1 port FDT" withDbm photo={fdtOpm} allowGallery={isAdmin} canDelete={canDelete} onChange={load} />
+        <h3 className="text-sm font-semibold">2. Foto akhir FDT (luar) + redaman OPM 1 port</h3>
+        <p className="text-xs text-faint -mt-1">
+          Satu foto: FDT tampak luar (tertutup rapi) dengan layar OPM yang tercolok di salah satu port output ikut terlihat.
+          Isi nilai dBm sesuai layar.
+        </p>
+        <StampedPhotoSlot projectId={projectId} assetId={fdt.id} purpose="fdt_finish" label="FDT luar + OPM 1 port" withDbm photo={fdtFinish} allowGallery={isAdmin} canDelete={canDelete} onChange={load} />
       </section>
     </div>
   );
