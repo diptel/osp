@@ -56,7 +56,9 @@ function packageProgress(app, pid) {
   }
   const out = []
   let total = 0
+  let contract = 0
   for (const p of pkgs) {
+    contract += Math.round(p.getFloat("volume") * p.getFloat("unit_price"))
     let mode = p.getString("count_mode")
     if (!mode) mode = p.getString("type") === "opm" ? "ports_approved" : "work_items"
     let qty = 0
@@ -78,7 +80,36 @@ function packageProgress(app, pid) {
       includes_material: p.getBool("includes_material"),
     })
   }
-  return { packages: out, total_amount: total, fats_done: fatsDone, cores_done: coresDone, ports_approved: portsApproved }
+  return { packages: out, total_amount: total, contract_value: contract, fats_done: fatsDone, cores_done: coresDone, ports_approved: portsApproved }
+}
+
+// Biaya satu proyek: tenaga kerja (hari × tarif + lembur × tarif lembur, tarif
+// per-proyek menimpa tarif pekerja) + pengeluaran. Rumus sama dengan halaman
+// Manajemen di web; dipakai ringkasan dasbor admin.
+function projectCost(app, pid, workersById) {
+  const rateOv = {}
+  for (const r of app.findRecordsByFilter("project_rates", "project = {:p}", "", 0, 0, { p: pid })) {
+    rateOv[r.getString("worker")] = { daily: r.getFloat("daily_rate"), overtime: r.getFloat("overtime_rate") }
+  }
+  let labor = 0
+  let tunai = 0
+  for (const a of app.findRecordsByFilter("attendance", "project = {:p} && present = true", "", 0, 0, { p: pid })) {
+    const wid = a.getString("worker")
+    const w = workersById[wid]
+    if (!w) continue
+    const ov = rateOv[wid] || {}
+    const daily = ov.daily > 0 ? ov.daily : w.getFloat("daily_rate")
+    const otRate = ov.overtime > 0 ? ov.overtime : w.getFloat("overtime_rate")
+    const dayCost = daily
+    const otCost = a.getFloat("overtime") * otRate
+    labor += dayCost + otCost
+    tunai += (w.getString("employment") === "bulanan" ? 0 : dayCost) + otCost
+  }
+  let expenses = 0
+  for (const x of app.findRecordsByFilter("project_expenses", "project = {:p}", "", 0, 0, { p: pid })) {
+    expenses += x.getFloat("amount")
+  }
+  return { labor: Math.round(labor), labor_tunai: Math.round(tunai), expenses: Math.round(expenses) }
 }
 
 // Checklist kelengkapan Finish RFS (dipakai endpoint rfs-status & rfs-complete)
@@ -139,4 +170,4 @@ function rfsChecklist(app, pid) {
            fats: fatRows, items, complete: items.every((i) => i.done) }
 }
 
-module.exports = { distanceM, hamming, assetPos, geo, isStaff, packageProgress, rfsChecklist, DUP_BITS: 5 }
+module.exports = { distanceM, hamming, assetPos, geo, isStaff, packageProgress, projectCost, rfsChecklist, DUP_BITS: 5 }

@@ -234,7 +234,7 @@ export default function KmzImportPage() {
             {project ? `${project.cluster_name || project.name} ${project.cluster_id ? "· " + project.cluster_id : ""}` : "Memuat proyek..."}
           </p>
         </div>
-        <Link href="/admin" className="text-xs text-accent underline shrink-0 mt-1">
+        <Link href="/admin/proyek" className="text-xs text-accent underline shrink-0 mt-1">
           Lewati, desain sendiri nanti
         </Link>
       </div>

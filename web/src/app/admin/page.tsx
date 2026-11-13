@@ -1,19 +1,27 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { pb } from "@/lib/pocketbase";
-import type { RecordModel } from "pocketbase";
+import { rupiah } from "@/components/ExpenseList";
 
-type ProjectRow = RecordModel & {
+/**
+ * Dasbor admin: ringkasan nilai proyek (kontrak), opname, biaya, dan
+ * untung/rugi semua proyek yang tidak diarsip. Daftar proyek lengkap ada
+ * di halaman /admin/proyek.
+ */
+type Row = {
+  id: string;
   code: string;
-  name: string;
-  region: string;
-  cluster_name: string;
   cluster_id: string;
+  cluster_name: string;
+  name: string;
   status: string;
-  archived?: boolean;
-  cancel_reason?: string;
-  expand?: { client?: RecordModel & { name: string } };
+  contract_value: number;
+  opname_total: number;
+  labor: number;
+  labor_tunai: number;
+  expenses: number;
+  margin: number;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -29,232 +37,155 @@ const STATUS_LABEL: Record<string, string> = {
   ditahan: "Ditahan",
   dibatalkan: "Dibatalkan",
 };
-const STATUS_COLOR: Record<string, string> = {
-  draft: "bg-[#EEF0F2] text-[#4A5059]",
-  survei: "bg-[#E4ECF8] text-[#1E3F7A]",
-  desain: "bg-[#E4ECF8] text-[#1E3F7A]",
-  berjalan: "bg-okbg text-ok",
-  rfs: "bg-okbg text-ok",
-  atp: "bg-[#FCF1D6] text-[#8A5A00]",
-  revisi_atp: "bg-warnbg text-warn",
-  lunas: "bg-okbg text-ok",
-  selesai: "bg-okbg text-ok",
-  ditahan: "bg-warnbg text-warn",
-  dibatalkan: "bg-[#EEF0F2] text-[#4A5059] line-through",
-};
-const STATUS_ORDER = ["draft", "survei", "desain", "berjalan", "rfs", "atp", "revisi_atp", "lunas", "selesai", "ditahan", "dibatalkan"];
+// Dikerjakan = sudah masuk lapangan sampai menunggu pelunasan; belum = tahap persiapan.
+const ONGOING = new Set(["berjalan", "rfs", "atp", "revisi_atp", "ditahan"]);
+const PENDING = new Set(["draft", "survei", "desain"]);
+const DONE = new Set(["lunas", "selesai"]);
 
 export default function AdminDashboard() {
-  const [projects, setProjects] = useState<ProjectRow[] | null>(null);
+  const [rows, setRows] = useState<Row[] | null>(null);
   const [err, setErr] = useState("");
-  const [busyId, setBusyId] = useState("");
-  // Konfirmasi di dalam kartu (bukan confirm()/prompt() browser — Chrome bisa
-  // membisukan dialog bawaan setelah beberapa kali, jadi klik seolah tidak
-  // merespons sama sekali).
-  const [ask, setAsk] = useState<{ id: string; kind: "arsip" | "batal"; reason: string } | null>(null);
-  const [portal, setPortal] = useState<{ id: string; url: string; copied: boolean } | null>(null);
 
-  function portalUrl(token: string) {
-    return `${window.location.origin}/app/portal/${token}/`;
-  }
-  async function showPortal(id: string, reset = false) {
-    setBusyId(id);
-    try {
-      const r = (await pb().send(`/api/briix/projects/${id}/portal-link${reset ? "/reset" : ""}`, { method: reset ? "POST" : "GET" })) as { token: string };
-      setPortal({ id, url: portalUrl(r.token), copied: false });
-    } catch (e) {
-      setErr("Gagal mengambil link portal: " + (e instanceof Error ? e.message : String(e)));
-    } finally {
-      setBusyId("");
-    }
-  }
-  async function copyPortal() {
-    if (!portal) return;
-    try {
-      await navigator.clipboard.writeText(portal.url);
-      setPortal({ ...portal, copied: true });
-    } catch {
-      /* fallback: user pilih manual dari input */
-    }
-  }
-
-  function load() {
+  useEffect(() => {
     pb()
-      .collection("projects")
-      .getFullList<ProjectRow>({ expand: "client", sort: "-created", filter: "archived != true" })
-      .then(setProjects)
-      .catch(() => setErr("Gagal memuat proyek."));
-  }
+      .send("/api/briix/dashboard/summary", { method: "GET" })
+      .then((r: { projects: Row[] }) => setRows(r.projects))
+      .catch((e) => setErr("Gagal memuat ringkasan: " + (e instanceof Error ? e.message : String(e))));
+  }, []);
 
-  useEffect(load, []);
+  const sum = useMemo(() => {
+    const live = (rows || []).filter((r) => r.status !== "dibatalkan");
+    const pick = (set: Set<string>) => live.filter((r) => set.has(r.status));
+    const agg = (xs: Row[]) => ({
+      n: xs.length,
+      contract: xs.reduce((s, r) => s + r.contract_value, 0),
+      opname: xs.reduce((s, r) => s + r.opname_total, 0),
+      cost: xs.reduce((s, r) => s + r.labor + r.expenses, 0),
+      margin: xs.reduce((s, r) => s + r.margin, 0),
+    });
+    return { all: agg(live), ongoing: agg(pick(ONGOING)), pending: agg(pick(PENDING)), done: agg(pick(DONE)), live };
+  }, [rows]);
 
-  async function changeStatus(id: string, status: string) {
-    if (status === "dibatalkan") {
-      setAsk({ id, kind: "batal", reason: "" });
-      return;
-    }
-    setBusyId(id);
-    setErr("");
-    try {
-      await pb().collection("projects").update(id, { status });
-      load();
-    } catch (e) {
-      setErr("Gagal mengubah status: " + (e instanceof Error ? e.message : String(e)));
-    } finally {
-      setBusyId("");
-    }
-  }
-
-  async function confirmAsk() {
-    if (!ask) return;
-    if (ask.kind === "batal" && !ask.reason.trim()) return;
-    setBusyId(ask.id);
-    setErr("");
-    try {
-      if (ask.kind === "batal") {
-        await pb().collection("projects").update(ask.id, { status: "dibatalkan", cancel_reason: ask.reason.trim() });
-      } else {
-        await pb().collection("projects").update(ask.id, { archived: true, archived_at: new Date().toISOString() });
-      }
-      setAsk(null);
-      load();
-    } catch (e) {
-      setErr(`Gagal ${ask.kind === "batal" ? "membatalkan" : "mengarsipkan"}: ` + (e instanceof Error ? e.message : String(e)));
-    } finally {
-      setBusyId("");
-    }
-  }
+  const pct = (a: number, b: number) => (b > 0 ? `${Math.round((a / b) * 100)}%` : "—");
 
   return (
     <div className="flex flex-col gap-6 max-w-5xl">
-      <div>
-        <h1 className="text-xl font-semibold">Dashboard proyek</h1>
-        <p className="text-sm text-muted">Semua proyek FTTH BRIIX OSP, lintas klien.</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-xl font-semibold">Dashboard</h1>
+          <p className="text-sm text-muted">Nilai proyek, opname, dan untung/rugi seluruh proyek BRIIX OSP.</p>
+        </div>
+        <Link href="/admin/proyek" className="text-sm font-semibold px-3 py-2 rounded-lg bg-ink text-white">
+          Daftar proyek →
+        </Link>
       </div>
 
       {err && <p className="text-sm text-warn">{err}</p>}
-      {!projects && !err && <p className="text-sm text-muted">Memuat...</p>}
-      {projects && projects.length === 0 && (
-        <p className="text-sm text-muted">
-          Belum ada proyek. Buat lewat{" "}
-          <Link href="/admin/proyek-baru" className="text-accent underline">
-            Proyek baru
-          </Link>
-          .
-        </p>
-      )}
+      {!rows && !err && <p className="text-sm text-muted">Memuat...</p>}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {projects?.map((p) => (
-          <div key={p.id} className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
-            <div className="flex items-start justify-between gap-2">
-              <span className="font-mono text-xs text-muted">{p.cluster_id || p.code}</span>
-              <select
-                value={p.status}
-                disabled={busyId === p.id}
-                onChange={(e) => changeStatus(p.id, e.target.value)}
-                className={`text-xs font-semibold px-2 py-0.5 rounded-md border-0 ${STATUS_COLOR[p.status] || ""}`}
-              >
-                {STATUS_ORDER.map((s) => (
-                  <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <h3 className="font-semibold leading-snug">{p.cluster_name || p.name}</h3>
-            <p className="text-xs text-muted">
-              {p.expand?.client?.name} · {p.region}
-            </p>
-            {p.status === "dibatalkan" && p.cancel_reason && (
-              <p className="text-xs text-warn">Dibatalkan: {p.cancel_reason}</p>
-            )}
-            {portal?.id === p.id && (
-              <div className="bg-[#FAFAF8] border border-dashed border-line2 rounded-lg p-2.5 flex flex-col gap-2">
-                <p className="text-xs font-semibold">Link portal klien (tanpa login — siapa pun yang punya link bisa melihat progres & mengunduh laporan)</p>
-                <input readOnly value={portal.url} onFocus={(e) => e.target.select()} className="border border-border rounded-lg px-2 py-1.5 text-xs bg-card font-mono" />
-                <div className="flex gap-2 flex-wrap">
-                  <button onClick={copyPortal} className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink text-white">
-                    {portal.copied ? "✓ Tersalin" : "Salin link"}
-                  </button>
-                  <a href={portal.url} target="_blank" rel="noreferrer" className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border">
-                    Buka ↗
-                  </a>
-                  <a href={`https://wa.me/?text=${encodeURIComponent(`Progres proyek ${p.cluster_name || p.name}: ${portal.url}`)}`} target="_blank" rel="noreferrer" className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border">
-                    Kirim via WA
-                  </a>
-                  <button onClick={() => showPortal(p.id, true)} className="text-xs text-warn underline ml-auto" title="Link lama tidak berlaku lagi">
-                    Ganti link
-                  </button>
-                  <button onClick={() => setPortal(null)} className="text-xs text-subtle">
-                    Tutup
-                  </button>
-                </div>
-              </div>
-            )}
-            {ask?.id === p.id && (
-              <div className="bg-[#FAFAF8] border border-dashed border-line2 rounded-lg p-2.5 flex flex-col gap-2">
-                {ask.kind === "batal" ? (
-                  <>
-                    <p className="text-xs font-semibold">Batalkan proyek ini? Isi alasannya:</p>
-                    <input
-                      autoFocus
-                      value={ask.reason}
-                      onChange={(e) => setAsk({ ...ask, reason: e.target.value })}
-                      onKeyDown={(e) => e.key === "Enter" && confirmAsk()}
-                      placeholder="Alasan pembatalan (wajib)"
-                      className="border border-border rounded-lg px-2 py-1.5 text-sm bg-card"
-                    />
-                  </>
-                ) : (
-                  <p className="text-xs font-semibold">Arsipkan proyek ini? Proyek hilang dari daftar (bisa dipulihkan di halaman Arsip).</p>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={confirmAsk}
-                    disabled={busyId === p.id || (ask.kind === "batal" && !ask.reason.trim())}
-                    className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-ink text-white disabled:opacity-50"
-                  >
-                    {busyId === p.id ? "Menyimpan..." : ask.kind === "batal" ? "Ya, batalkan proyek" : "Ya, arsipkan"}
-                  </button>
-                  <button onClick={() => setAsk(null)} className="text-xs text-subtle px-2 py-1.5">
-                    Tidak
-                  </button>
-                </div>
-              </div>
-            )}
-            <div className="flex flex-wrap gap-3 mt-1">
-              <Link href={`/admin/proyek/${p.id}/kmz`} className="text-xs text-accent underline">
-                Impor KMZ
-              </Link>
-              <Link href={`/admin/proyek/${p.id}/odp-finish`} className="text-xs text-accent underline">
-                Finish RFS
-              </Link>
-              <Link href={`/admin/proyek/${p.id}/laporan`} className="text-xs text-accent underline">
-                Laporan
-              </Link>
-              <Link href={`/admin/proyek/${p.id}/paket`} className="text-xs text-accent underline">
-                Paket &amp; pengaturan
-              </Link>
-              <Link href={`/admin/proyek/${p.id}/manajemen`} className="text-xs text-accent underline">
-                Manajemen
-              </Link>
-              <button onClick={() => showPortal(p.id)} disabled={busyId === p.id} className="text-xs text-accent underline disabled:opacity-50">
-                Link portal klien
-              </button>
-              {(p.status === "selesai" || p.status === "dibatalkan") && (
-                <button
-                  onClick={() => setAsk({ id: p.id, kind: "arsip", reason: "" })}
-                  disabled={busyId === p.id}
-                  className="text-xs text-subtle underline ml-auto disabled:opacity-50"
-                >
-                  Arsipkan
-                </button>
-              )}
-            </div>
+      {rows && (
+        <>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Stat label="Nilai semua proyek" value={rupiah(sum.all.contract)} sub={`${sum.all.n} proyek aktif (tanpa arsip & batal)`} />
+            <Stat label="Sedang dikerjakan" value={rupiah(sum.ongoing.contract)} sub={`${sum.ongoing.n} proyek · berjalan s.d. ATP`} />
+            <Stat label="Belum dikerjakan" value={rupiah(sum.pending.contract)} sub={`${sum.pending.n} proyek · draf/survei/desain`} />
+            <Stat label="Selesai / lunas" value={rupiah(sum.done.contract)} sub={`${sum.done.n} proyek`} />
           </div>
-        ))}
-      </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <Stat label="Opname disetujui QC" value={rupiah(sum.all.opname)} sub={`${pct(sum.all.opname, sum.all.contract)} dari nilai semua proyek`} />
+            <Stat label="Total biaya" value={rupiah(sum.all.cost)} sub="tenaga kerja + pengeluaran" />
+            <Stat
+              label={sum.all.margin >= 0 ? "Untung (sementara)" : "Rugi (sementara)"}
+              value={rupiah(Math.abs(sum.all.margin))}
+              sub={`margin ${pct(sum.all.margin, sum.all.opname)} dari opname`}
+              tone={sum.all.margin >= 0 ? "ok" : "warn"}
+            />
+            <Stat
+              label="L/R proyek berjalan"
+              value={rupiah(Math.abs(sum.ongoing.margin))}
+              sub={sum.ongoing.margin >= 0 ? "untung sementara" : "rugi sementara"}
+              tone={sum.ongoing.margin >= 0 ? "ok" : "warn"}
+            />
+          </div>
+
+          <div className="bg-card border border-border rounded-xl overflow-x-auto">
+            <div className="px-4 py-3 border-b border-border">
+              <p className="text-sm font-semibold">Per proyek</p>
+              <p className="text-xs text-muted">Nilai = Σ volume × harga satuan paket. Opname = volume disetujui QC. L/R = opname − biaya.</p>
+            </div>
+            {sum.live.length === 0 ? (
+              <p className="text-sm text-muted p-4">
+                Belum ada proyek.{" "}
+                <Link href="/admin/proyek-baru" className="text-accent underline">
+                  Buat proyek baru
+                </Link>
+                .
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="text-xs text-muted">
+                  <tr>
+                    <th className="text-left px-4 py-2 font-medium">Proyek</th>
+                    <th className="text-left px-3 py-2 font-medium">Status</th>
+                    <th className="text-right px-3 py-2 font-medium">Nilai proyek</th>
+                    <th className="text-right px-3 py-2 font-medium">Opname</th>
+                    <th className="text-right px-3 py-2 font-medium">Biaya</th>
+                    <th className="text-right px-4 py-2 font-medium">L/R</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sum.live.map((r) => (
+                    <tr key={r.id} className="border-t border-border">
+                      <td className="px-4 py-2">
+                        <Link href={`/admin/proyek/${r.id}/manajemen`} className="font-semibold hover:underline">
+                          {r.cluster_name || r.name}
+                        </Link>
+                        <div className="font-mono text-[11px] text-muted">{r.cluster_id || r.code}</div>
+                      </td>
+                      <td className="px-3 py-2 text-xs">{STATUS_LABEL[r.status] || r.status}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{rupiah(r.contract_value)}</td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {rupiah(r.opname_total)}
+                        <div className="text-[11px] text-faint">{pct(r.opname_total, r.contract_value)}</div>
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">{rupiah(r.labor + r.expenses)}</td>
+                      <td className={`px-4 py-2 text-right whitespace-nowrap font-semibold ${r.margin >= 0 ? "text-ok" : "text-warn"}`}>
+                        {r.margin < 0 ? "−" : ""}
+                        {rupiah(Math.abs(r.margin))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="text-sm font-semibold">
+                  <tr className="border-t border-border bg-[#FAFAF8]">
+                    <td className="px-4 py-2" colSpan={2}>
+                      Total
+                    </td>
+                    <td className="px-3 py-2 text-right">{rupiah(sum.all.contract)}</td>
+                    <td className="px-3 py-2 text-right">{rupiah(sum.all.opname)}</td>
+                    <td className="px-3 py-2 text-right">{rupiah(sum.all.cost)}</td>
+                    <td className={`px-4 py-2 text-right ${sum.all.margin >= 0 ? "text-ok" : "text-warn"}`}>
+                      {sum.all.margin < 0 ? "−" : ""}
+                      {rupiah(Math.abs(sum.all.margin))}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "ok" | "warn" }) {
+  const toneCls = tone === "ok" ? "text-ok" : tone === "warn" ? "text-warn" : "";
+  return (
+    <div className="bg-card border border-border rounded-xl p-3.5 flex flex-col gap-0.5">
+      <span className="text-[11px] text-muted">{label}</span>
+      <span className={`text-lg font-semibold leading-tight ${toneCls}`}>{value}</span>
+      {sub && <span className="text-[11px] text-faint">{sub}</span>}
     </div>
   );
 }

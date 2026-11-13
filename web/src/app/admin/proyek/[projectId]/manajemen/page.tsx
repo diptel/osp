@@ -20,7 +20,7 @@ type Project = RecordModel & {
 };
 type AttendanceRow = RecordModel & { worker: string; date: string; present: boolean; overtime: number };
 type RateRow = RecordModel & { worker: string; daily_rate?: number; overtime_rate?: number };
-type Opname = { total_amount: number; packages: { name: string; amount: number }[] };
+type Opname = { total_amount: number; contract_value?: number; packages: { name: string; amount: number }[] };
 
 type Tab = "ringkasan" | "absensi" | "biaya" | "tarif" | "laporan";
 
@@ -146,6 +146,7 @@ export default function ManajemenProyekPage() {
   const expenseTotal = expenses.reduce((s, e) => s + (e.amount || 0), 0);
   const costTotal = labor.total + expenseTotal;
   const revenue = opname?.total_amount || 0;
+  const contract = opname?.contract_value || 0;
   const margin = revenue - costTotal;
   const budget = project?.budget || 0;
 
@@ -189,7 +190,7 @@ export default function ManajemenProyekPage() {
   return (
     <div className="flex flex-col gap-5 max-w-5xl">
       <div>
-        <Link href="/admin" className="text-xs text-accent underline">
+        <Link href="/admin/proyek" className="text-xs text-accent underline">
           ← Dashboard
         </Link>
         <p className="font-mono text-xs text-muted mt-2">{project?.cluster_id}</p>
@@ -215,7 +216,16 @@ export default function ManajemenProyekPage() {
         <div className="flex flex-col gap-5">
           {/* Kartu angka utama */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <Stat label="Nilai opname (disetujui QC)" value={rupiah(revenue)} sub={opname ? `${opname.packages.length} paket` : "—"} />
+            <Stat
+              label="Nilai proyek (kontrak)"
+              value={rupiah(contract)}
+              sub={opname ? `${opname.packages.length} paket · volume × harga satuan` : "—"}
+            />
+            <Stat
+              label="Nilai opname (disetujui QC)"
+              value={rupiah(revenue)}
+              sub={contract ? `${Math.round((revenue / contract) * 100)}% dari nilai proyek · sisa ${rupiah(Math.max(0, contract - revenue))}` : "—"}
+            />
             <Stat label="Biaya tenaga kerja" value={rupiah(labor.total)} sub={`tunai ${rupiah(labor.totalTunai)} · alokasi gaji bulanan ${rupiah(labor.totalAlokasi)}`} />
             <Stat label="Biaya lain-lain" value={rupiah(expenseTotal)} sub={`${expenses.length} transaksi`} />
             <Stat

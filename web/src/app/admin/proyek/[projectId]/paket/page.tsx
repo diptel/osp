@@ -377,7 +377,7 @@ export default function PaketPage() {
   return (
     <div className="flex flex-col gap-5 max-w-5xl">
       <div>
-        <Link href="/admin" className="text-xs text-accent underline">
+        <Link href="/admin/proyek" className="text-xs text-accent underline">
           ← Dashboard
         </Link>
         <p className="font-mono text-xs text-muted mt-2">{project?.cluster_id}</p>

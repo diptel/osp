@@ -8,6 +8,7 @@ import { InstallAppButton } from "@/components/InstallAppButton";
 
 const NAV = [
   { href: "/admin", label: "Dashboard" },
+  { href: "/admin/proyek", label: "Proyek" },
   { href: "/admin/proyek-baru", label: "Proyek baru" },
   { href: "/admin/qc", label: "Antrian QC" },
   { href: "/admin/tim", label: "Tim" },

@@ -156,6 +156,29 @@ routerAdd("GET", "/api/briix/projects/{id}/opname", (e) => {
   return e.json(200, Object.assign({ project: pid }, r))
 })
 
+// Ringkasan dasbor admin: nilai kontrak, opname, biaya, dan L/R semua proyek
+// (tidak diarsip). GET /api/briix/dashboard/summary   (admin)
+routerAdd("GET", "/api/briix/dashboard/summary", (e) => {
+  if (!e.auth || e.auth.getString("role") !== "admin") throw new ForbiddenError("Khusus admin.")
+  const u = require(`${__hooks}/utils.js`)
+  const workersById = {}
+  for (const w of e.app.findRecordsByFilter("workers", "id != ''", "", 0, 0)) workersById[w.id] = w
+  const rows = []
+  for (const p of e.app.findRecordsByFilter("projects", "archived = false", "-created", 0, 0)) {
+    const pid = p.id
+    const prog = u.packageProgress(e.app, pid)
+    const cost = u.projectCost(e.app, pid, workersById)
+    rows.push({
+      id: pid, code: p.getString("code"), cluster_id: p.getString("cluster_id"),
+      cluster_name: p.getString("cluster_name"), name: p.getString("name"), status: p.getString("status"),
+      contract_value: prog.contract_value, opname_total: prog.total_amount,
+      labor: cost.labor, labor_tunai: cost.labor_tunai, expenses: cost.expenses,
+      margin: prog.total_amount - cost.labor - cost.expenses,
+    })
+  }
+  return e.json(200, { projects: rows })
+})
+
 // Progres paket untuk anggota proyek (app teknisi) — TANPA harga/nominal.
 routerAdd("GET", "/api/briix/projects/{id}/progress", (e) => {
   if (!e.auth) throw new ForbiddenError("Perlu login.")
