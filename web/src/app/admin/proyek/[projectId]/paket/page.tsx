@@ -10,6 +10,10 @@ type Project = RecordModel & {
   cluster_name: string;
   cluster_id: string;
   name: string;
+  code?: string;
+  region?: string;
+  olt?: string;
+  client?: string;
   atp_logo?: string;
   feeder_cores?: number;
   gps_tolerance_m?: number;
@@ -105,6 +109,9 @@ export default function PaketPage() {
   const [msg, setMsg] = useState("");
   const [settings, setSettings] = useState({ gps_tolerance_m: "", opm_limit_enabled: false, opm_min_dbm: "", feeder_cores: "", fdt_input_dbm: "" });
   const [busy, setBusy] = useState("");
+  const EMPTY_ID = { code: "", name: "", cluster_id: "", cluster_name: "", region: "", olt: "", client: "" };
+  const [ident, setIdent] = useState({ ...EMPTY_ID });
+  const [clients, setClients] = useState<(RecordModel & { name: string })[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [tplSel, setTplSel] = useState("");
   const [tplName, setTplName] = useState("");
@@ -116,6 +123,15 @@ export default function PaketPage() {
       .getOne<Project>(pid)
       .then((p) => {
         setProject(p);
+        setIdent({
+          code: p.code || "",
+          name: p.name || "",
+          cluster_id: p.cluster_id || "",
+          cluster_name: p.cluster_name || "",
+          region: p.region || "",
+          olt: p.olt || "",
+          client: p.client || "",
+        });
         setSettings({
           gps_tolerance_m: p.gps_tolerance_m ? String(p.gps_tolerance_m) : "",
           opm_limit_enabled: !!p.opm_limit_enabled,
@@ -140,7 +156,34 @@ export default function PaketPage() {
       .getFullList<Template>({ sort: "name" })
       .then(setTemplates)
       .catch(() => setTemplates([]));
+    pb()
+      .collection("clients")
+      .getFullList<RecordModel & { name: string }>({ sort: "name" })
+      .then(setClients)
+      .catch(() => setClients([]));
   }, [pid]);
+
+  async function saveIdent() {
+    if (!ident.name.trim() || !ident.client) {
+      setMsg("Nama proyek dan klien wajib diisi.");
+      return;
+    }
+    try {
+      await pb().collection("projects").update(pid, {
+        code: ident.code.trim(),
+        name: ident.name.trim(),
+        cluster_id: ident.cluster_id.trim(),
+        cluster_name: ident.cluster_name.trim(),
+        region: ident.region.trim(),
+        olt: ident.olt.trim(),
+        client: ident.client,
+      });
+      setMsg("Data proyek tersimpan.");
+      load();
+    } catch (e) {
+      setMsg("Gagal menyimpan data proyek: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
   useEffect(load, [load]);
 
   // ----- template -----
@@ -530,6 +573,45 @@ export default function PaketPage() {
             </tbody>
           </table>
         )}
+      </div>
+
+      {/* Data proyek */}
+      <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
+        <p className="text-sm font-semibold">Data proyek</p>
+        <p className="text-xs text-muted">Kode proyek, cluster, wilayah, dan OLT dipakai di laporan PDF, Form ATP, dan portal klien.</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {(
+            [
+              ["code", "Kode proyek", "BJN000814"],
+              ["cluster_id", "Kode cluster", "TMU123.035"],
+              ["cluster_name", "Nama cluster", "Temu RW 1,2,3 Bojonegoro"],
+              ["name", "Nama proyek *", ""],
+              ["region", "Wilayah", "Bojonegoro"],
+              ["olt", "OLT", ""],
+            ] as const
+          ).map(([k, lbl, ph]) => (
+            <label key={k} className="text-xs text-muted flex flex-col gap-1">
+              {lbl}
+              <input value={ident[k]} onChange={(e) => setIdent({ ...ident, [k]: e.target.value })} placeholder={ph} className="border border-border rounded-lg px-3 py-2 text-sm bg-card" />
+            </label>
+          ))}
+          <label className="text-xs text-muted flex flex-col gap-1">
+            Klien *
+            <select value={ident.client} onChange={(e) => setIdent({ ...ident, client: e.target.value })} className="border border-border rounded-lg px-3 py-2 text-sm bg-card">
+              <option value="">— pilih klien —</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div>
+          <button onClick={saveIdent} className="bg-accent text-white rounded-lg px-4 py-2 text-sm font-semibold">
+            Simpan data proyek
+          </button>
+        </div>
       </div>
 
       {/* Pengaturan teknis */}
