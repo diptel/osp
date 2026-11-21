@@ -25,6 +25,23 @@ type OpmTest = RecordModel & {
   expand?: { photo?: RecordModel & { file: string } };
 };
 
+/** Pesan error PocketBase yang bisa dibaca teknisi (bukan hanya "Gagal menyimpan"). */
+function describeError(e: unknown): string {
+  const x = e as { status?: number; message?: string; data?: { message?: string; data?: Record<string, { message?: string }> } };
+  const st = x?.status;
+  const fieldMsgs = Object.entries(x?.data?.data || {})
+    .map(([k, v]) => `${k}: ${v?.message || ""}`)
+    .join("; ");
+  const srv = x?.data?.message || x?.message || "";
+  if (st === 403 || (st === 400 && /create record/i.test(srv) && !fieldMsgs)) {
+    return "Akun Anda tidak diizinkan mengirim uji OPM di proyek ini (bukan anggota proyek / peran belum sesuai). Hubungi admin.";
+  }
+  if (fieldMsgs && /photo/.test(fieldMsgs) && /unique/i.test(fieldMsgs)) return "Foto ini sudah dipakai untuk port lain.";
+  if (fieldMsgs && /port_fat/.test(fieldMsgs)) return "Port ini sudah terisi. Pilih port lain atau minta QC menandai revisi.";
+  if (srv && !/something went wrong/i.test(srv)) return `Gagal menyimpan: ${srv}${fieldMsgs ? ` (${fieldMsgs})` : ""}`;
+  return "Gagal menyimpan. Periksa koneksi lalu coba lagi.";
+}
+
 export default function UjiOpmPage() {
   const { projectId, fatId } = useParams<{ projectId: string; fatId: string }>();
   const [fat, setFat] = useState<Asset | null>(null);
@@ -44,6 +61,9 @@ export default function UjiOpmPage() {
   const [phash, setPhash] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // foto yang sudah berhasil diunggah tapi uji OPM-nya gagal disimpan —
+  // dipakai ulang saat coba simpan lagi supaya tidak ditolak sebagai foto dobel
+  const uploadedRef = useRef<{ key: string; id: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function load() {
@@ -126,6 +146,9 @@ export default function UjiOpmPage() {
       if (pos) lines.push(`${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}  ±${Math.round(pos.coords.accuracy || 0)} m`);
       if (place) lines.push(place);
       lines.push(`OPM ${Number(dbm)} dBm`);
+      const photoKey = `${phash}|${port}`;
+      let photoId = uploadedRef.current?.key === photoKey ? uploadedRef.current.id : "";
+      if (!photoId) {
       const stamped = await stampPhoto(file, lines);
       const stampedHash = await dhash(stamped).catch(() => phash);
       const photoForm = new FormData();
@@ -145,6 +168,9 @@ export default function UjiOpmPage() {
       photoForm.append("far", String(checks.okGps === false));
       photoForm.append("uploaded_by", u?.id || "");
       const photo = await pb().collection("photos").create(photoForm);
+      photoId = photo.id;
+      uploadedRef.current = { key: photoKey, id: photoId };
+      }
 
       const payload = {
         project: projectId,
@@ -152,7 +178,7 @@ export default function UjiOpmPage() {
         port_fat: port,
         opm_dbm: Number(dbm),
         input_fdt_dbm: project?.fdt_input_dbm,
-        photo: photo.id,
+        photo: photoId,
         tested_at: new Date().toISOString(),
         tested_by: u?.id,
         status: "submitted",
@@ -164,6 +190,7 @@ export default function UjiOpmPage() {
         await pb().collection("opm_tests").create(payload);
       }
 
+      uploadedRef.current = null;
       setFile(null);
       setPreview("");
       setDbm("");
@@ -171,8 +198,8 @@ export default function UjiOpmPage() {
       if (inputRef.current) inputRef.current.value = "";
       setPort((p) => (p != null && p < total ? p + 1 : p));
       load();
-    } catch {
-      setErr("Gagal menyimpan. Foto mungkin duplikat atau port sudah terisi.");
+    } catch (e) {
+      setErr(describeError(e));
     } finally {
       setBusy(false);
     }
