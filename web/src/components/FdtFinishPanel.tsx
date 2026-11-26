@@ -67,6 +67,24 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
     }
   }
 
+  // Hapus satu slot core feeder yang kosong: jumlah core dikurangi 1 dan foto
+  // dengan nomor di atasnya digeser turun supaya urutan tetap rapat.
+  async function removeSlot(n: number) {
+    if (!fdt) return;
+    try {
+      const higher = photos.filter((p) => p.purpose === "fdt_feeder" && p.seq != null && p.seq > n);
+      for (const p of higher.sort((a, b) => (a.seq as number) - (b.seq as number))) {
+        await pb().collection("photos").update(p.id, { seq: (p.seq as number) - 1 });
+      }
+      const next = Math.max(0, feederCores - 1);
+      await pb().collection("projects").update(projectId, { feeder_cores: next });
+      setMsg(`Slot core feeder #${n} dihapus. Jumlah core feeder sekarang ${next}.`);
+      load();
+    } catch (e) {
+      setMsg("Gagal menghapus slot: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
+
   const byPurpose = (purpose: string) => photos.filter((p) => p.purpose === purpose);
   const feederBySeq = new Map<number, StampedPhoto>();
   for (const p of byPurpose("fdt_feeder")) if (p.seq != null && !feederBySeq.has(p.seq)) feederBySeq.set(p.seq, p);
@@ -109,8 +127,8 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
         </h3>
         {feederCores === 0 && <p className="text-xs text-faint">Minta admin mengisi jumlah core feeder proyek ini.</p>}
         {Array.from({ length: feederCores }, (_, i) => i + 1).map((n) => (
+          <div key={n} className="flex flex-col gap-1">
           <StampedPhotoSlot
-            key={n}
             projectId={projectId}
             assetId={fdt.id}
             purpose="fdt_feeder"
@@ -123,7 +141,14 @@ export function FdtFinishPanel({ projectId, isAdmin = false }: { projectId: stri
             stampTitle={`${clusterId} FDT ${fdt.code}`}
             toleranceM={tolerance}
           />
+          {isAdmin && !feederBySeq.get(n) && (
+            <button onClick={() => removeSlot(n)} className="self-end text-xs text-warn underline pr-1">
+              Hapus slot #{n} (tidak dipakai)
+            </button>
+          )}
+          </div>
         ))}
+        {msg && <p className="text-xs text-subtle">{msg}</p>}
       </section>
 
       <section className="flex flex-col gap-2">
